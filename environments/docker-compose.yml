@@ -1,0 +1,38 @@
+# Wordpress + modsecurity with CRS
+version: "3.0"
+services:
+  wordpress-db:
+    image: mysql:5.7
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: somewordpress
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+  wordpress:
+    depends_on:
+      - wordpress-db
+    image: wordpress:5.5.1
+    ports:
+      - "8000:80"
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+  modsecurity:
+    depends_on:
+      - wordpress
+    image: owasp/modsecurity-crs:3.3-nginx
+    ports: 
+      - "8001:80"
+    restart: always
+    environment:
+      PARANOIA: 1 # Default level is 1
+      PROXY: 1 # Proxy is enabled
+      UPSTREAM: wordpress:80
+volumes:
+  db_data: {}
