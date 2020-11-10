@@ -33,6 +33,7 @@ services:
     environment:
       PARANOIA: 1 # Default level is 1
       PROXY: 1 # Proxy is enabled
-      UPSTREAM: wordpress:80
+      BACKEND: http://wordpress
+      SERVER_NAME: waf 
 volumes:
   db_data: {}
