@@ -28,7 +28,7 @@ services:
       - wordpress
     image: owasp/modsecurity-crs:3.3-nginx
     ports: 
-      - "8001:80"
+      - "80:80" # todo: can set back to 8001 in the future, maybe
     restart: always
     environment:
       PARANOIA: 1 # Default level is 1
