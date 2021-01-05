@@ -1,6 +1,5 @@
 mod rule;
 mod reverse_proxy;
-mod waf_running_mode;
 
 use hyper::service::{make_service_fn, service_fn};
 use std::convert::Infallible;
@@ -8,7 +7,6 @@ use hyper::{Server, Client};
 use std::net::SocketAddr;
 use hyper::client::HttpConnector;
 use crate::reverse_proxy::ReverseProxy;
-use crate::waf_running_mode::WafRunningMode::DetectionOnly;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -30,9 +28,6 @@ hosts:
         client: http_client,
         scheme: "http".to_owned(),
         authority: "example.com".to_owned(),
-        // WAF specific properties
-        rules: vec![],
-        running_mode: DetectionOnly
     });
 
     let address = SocketAddr::from(([127, 0, 0, 1], 3030));
