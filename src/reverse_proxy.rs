@@ -1,18 +1,47 @@
 use hyper::{Client, Request, Body, Response, Error, HeaderMap, Uri};
 use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
+use crate::rule::Rule;
+use crate::waf_running_mode::WafRunningMode;
+use crate::waf_running_mode::WafRunningMode::Off;
 
 pub(crate) struct ReverseProxy {
     pub(crate) scheme: String,
     pub(crate) authority: String,
     pub(crate) client: Client<HttpConnector>,
+
+    // TODO: Needed for WAF; need to determine if to use composition and just have WAF
+    //  inspect the request and then pass it on to reverse proxy
+    pub(crate) rules: Vec<Rule>,
+    pub(crate) running_mode: WafRunningMode,
 }
 
 impl ReverseProxy {
     pub(crate) async fn handle_request(&self, mut request: Request<Body>) -> Result<Response<Body>, Error> {
+        // Inspect the request based on rules
+        if self.running_mode != Off {
+            let matched_rules: Vec<Rule> = self.rules.iter()
+                .filter(|rule| {
+                    if rule.matches(&request) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                })
+                .cloned()
+                .collect();
+
+            if !matched_rules.is_empty() {
+                // log the request here
+
+
+                // drop the request and do not forward to upstream server
+            }
+        }
+
+        // Rewrite the request to pass it forward to upstream servers
         *request.uri_mut() = self.rewrite_uri(&request);
         *request.headers_mut() = self.build_header_map(&request);
-
 
         log::debug!("Request == {:?}", request);
         let response = self.client.request(request).await.unwrap();
