@@ -1,6 +1,8 @@
 mod rule;
 mod reverse_proxy;
 mod waf_running_mode;
+mod rule_directive;
+mod rule_variable;
 
 use hyper::service::{make_service_fn, service_fn};
 use std::convert::Infallible;
