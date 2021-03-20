@@ -59,15 +59,15 @@ pub fn parse_directive(input: &str) -> IResult<&str, RuleDirective> {
         "rule directive",
         alt(
             (
-                tag("SecAction"),
-                tag("SecDefaultAction"),
-                tag("SecMarker"),
-                tag("SecRule"),
-                tag("SecRuleInheritance"),
-                tag("SecRuleRemoveById"),
-                tag("SecRuleRemoveByMsg"),
-                tag("SecRuleScript"),
                 tag("SecRuleUpdateActionById"),
+                tag("SecRuleScript"),
+                tag("SecRuleRemoveByMsg"),
+                tag("SecRuleRemoveById"),
+                tag("SecRuleInheritance"),
+                tag("SecRule"),
+                tag("SecMarker"),
+                tag("SecDefaultAction"),
+                tag("SecAction"),
             )
         ),
     )(input).map(|(next_input, directive_str)| (next_input, directive_str.into()))
@@ -75,5 +75,7 @@ pub fn parse_directive(input: &str) -> IResult<&str, RuleDirective> {
   
 #[test]
 fn parse_rule_should_extract_directive() {
-    assert_eq!(rule_directive::parse_directive("SecRule").unwrap().1, RuleDirective::SecRule)
+    assert_eq!(RuleDirective::SecRule, rule_directive::parse_directive("SecRule").unwrap().1);
+    assert_eq!(RuleDirective::SecRuleScript,
+               rule_directive::parse_directive("SecRuleScript").unwrap().1);
 }
