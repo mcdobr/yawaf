@@ -1,3 +1,9 @@
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::error::context;
+use nom::IResult;
+use crate::rule_directive;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum RuleDirective {
     SecAction,
@@ -45,4 +51,29 @@ impl std::str::FromStr for RuleDirective {
             _ => Err(())
         }
     }
+}
+
+// Consult https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual-(v2.x)
+pub fn parse_directive(input: &str) -> IResult<&str, RuleDirective> {
+    context(
+        "rule directive",
+        alt(
+            (
+                tag("SecAction"),
+                tag("SecDefaultAction"),
+                tag("SecMarker"),
+                tag("SecRule"),
+                tag("SecRuleInheritance"),
+                tag("SecRuleRemoveById"),
+                tag("SecRuleRemoveByMsg"),
+                tag("SecRuleScript"),
+                tag("SecRuleUpdateActionById"),
+            )
+        ),
+    )(input).map(|(next_input, directive_str)| (next_input, directive_str.into()))
+}
+  
+#[test]
+fn parse_rule_should_extract_directive() {
+    assert_eq!(rule_directive::parse_directive("SecRule").unwrap().1, RuleDirective::SecRule)
 }

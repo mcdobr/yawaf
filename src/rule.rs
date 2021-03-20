@@ -1,12 +1,11 @@
-use hyper::{Request, Body};
-use nom::IResult;
-use crate::rule_directive::RuleDirective;
+use hyper::{Body, Request};
 use nom::error::context;
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use crate::rule_variable::RuleVariable;
+use nom::IResult;
 use nom::sequence::tuple;
-use nom::multi::many1;
+
+use crate::{rule_directive, rule_variable};
+use crate::rule_directive::RuleDirective;
+use crate::rule_variable::RuleVariable;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -23,47 +22,13 @@ impl Rule {
     }
 }
 
-// Consult https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual-(v2.x)
-fn parse_directive(input: &str) -> IResult<&str, RuleDirective> {
-    context(
-        "rule directive",
-        alt(
-            (
-                tag("SecAction"),
-                tag("SecDefaultAction"),
-                tag("SecMarker"),
-                tag("SecRule"),
-                tag("SecRuleInheritance"),
-                tag("SecRuleRemoveById"),
-                tag("SecRuleRemoveByMsg"),
-                tag("SecRuleScript"),
-                tag("SecRuleUpdateActionById"),
-            )
-        ),
-    )(input).map(|(next_input, directive_str)| (next_input, directive_str.into()))
-}
-
-fn parse_variables(input: &str) -> IResult<&str, Vec<RuleVariable>> {
-    context(
-        "rule variable",
-        alt(
-            (
-                tag("REQUEST_FILENAME"),
-                tag("SESSIONID"),
-            )
-        ),
-    )(input).map(|(next_input, result)| {
-        (next_input, vec![result.into()])
-    })
-}
-
 fn parse_rule(input: &str) -> IResult<&str, Rule> {
     context(
         "rule",
         tuple((
-            parse_directive,
+            rule_directive::parse_directive,
             // need to handle whitespaces somehow
-            parse_variables,
+            rule_variable::parse_variables,
         )),
     )(input)
         .map(|(next_input, result)| {
@@ -80,11 +45,6 @@ fn parse_rule(input: &str) -> IResult<&str, Rule> {
         })
 }
 
-#[test]
-fn parse_rule_should_extract_directive() {
-    assert_eq!(parse_directive("SecRule").unwrap().1, RuleDirective::SecRule)
-}
-
 
 #[test]
 fn parse_rule_should_extract_basic_elements() {
@@ -97,11 +57,13 @@ fn parse_rule_should_extract_basic_elements() {
         ver:'OWASP_CRS/3.3.0'"
     "###;
 
-    assert_eq!(parse_rule(raw_rule), Ok(("", Rule {
-        directive: RuleDirective::SecRule,
-        variables: vec![RuleVariable::RequestFilename],
-        operator: "".to_string(),
-        transformations: "".to_string(),
-        actions: "".to_string(),
-    })));
+    assert_eq!(parse_rule(raw_rule).unwrap().1,
+               Rule {
+                   directive: RuleDirective::SecRule,
+                   variables: vec![RuleVariable::RequestFilename],
+                   operator: "".to_string(),
+                   transformations: "".to_string(),
+                   actions: "".to_string(),
+               }
+    );
 }

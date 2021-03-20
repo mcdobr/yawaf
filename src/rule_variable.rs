@@ -1,3 +1,11 @@
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::character::complete::space1;
+use nom::error::context;
+use nom::IResult;
+use nom::lib::std::result::Result::Err;
+use nom::sequence::tuple;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum RuleVariable {
     Args,
@@ -222,4 +230,150 @@ impl std::convert::From<&str> for RuleVariable {
             _ => unimplemented!("directive not implemented")
         }
     }
+}
+
+impl std::str::FromStr for RuleVariable {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "ARGS" => Ok(RuleVariable::Args),
+            "ARGS_COMBINED_SIZE" => Ok(RuleVariable::ArgsCombinedSize),
+            "ARGS_GET" => Ok(RuleVariable::ArgsGet),
+            "ARGS_GET_NAMES" => Ok(RuleVariable::ArgsGetNames),
+            "ARGS_NAMES" => Ok(RuleVariable::ArgsNames),
+            "ARGS_POST" => Ok(RuleVariable::ArgsPost),
+            "ARGS_POST_NAMES" => Ok(RuleVariable::ArgsPostNames),
+            "AUTH_TYPE" => Ok(RuleVariable::AuthType),
+            "DURATION" => Ok(RuleVariable::Duration),
+            "ENV" => Ok(RuleVariable::Env),
+            "FILES" => Ok(RuleVariable::Files),
+            "FILES_COMBINED_SIZE" => Ok(RuleVariable::FilesCombinedSize),
+            "FILES_NAMES" => Ok(RuleVariable::FilesNames),
+            "FULL_REQUEST" => Ok(RuleVariable::FullRequest),
+            "FULL_REQUEST_LENGTH" => Ok(RuleVariable::FullRequestLength),
+            "FILES_SIZES" => Ok(RuleVariable::FilesSizes),
+            "FILES_TMPNAMES" => Ok(RuleVariable::FilesTmpnames),
+            "FILES_TMP_CONTENT" => Ok(RuleVariable::FilesTmpContent),
+            "GEO" => Ok(RuleVariable::Geo),
+            "HIGHEST_SEVERITY" => Ok(RuleVariable::HighestSeverity),
+            "INBOUND_DATA_ERROR" => Ok(RuleVariable::InboundDataError),
+            "MATCHED_VAR" => Ok(RuleVariable::MatchedVar),
+            "MATCHED_VARS" => Ok(RuleVariable::MatchedVars),
+            "MATCHED_VAR_NAME" => Ok(RuleVariable::MatchedVarName),
+            "MATCHED_VARS_NAMES" => Ok(RuleVariable::MatchedVarsNames),
+            "MODSEC_BUILD" => Ok(RuleVariable::ModsecBuild),
+            "MULTIPART_CRLF_LF_LINES" => Ok(RuleVariable::MultipartCrlfLfLines),
+            "MULTIPART_FILENAME" => Ok(RuleVariable::MultipartFilename),
+            "MULTIPART_NAME" => Ok(RuleVariable::MultipartName),
+            "MULTIPART_STRICT_ERROR" => Ok(RuleVariable::MultipartStrictError),
+            "MULTIPART_UNMATCHED_BOUNDARY" => Ok(RuleVariable::MultipartUnmatchedBoundary),
+            "OUTBOUND_DATA_ERROR" => Ok(RuleVariable::OutboundDataError),
+            "PATH_INFO" => Ok(RuleVariable::PathInfo),
+            "PERF_ALL" => Ok(RuleVariable::PerfAll),
+            "PERF_COMBINED" => Ok(RuleVariable::PerfCombined),
+            "PERF_GC" => Ok(RuleVariable::PerfGc),
+            "PERF_LOGGING" => Ok(RuleVariable::PerfLogging),
+            "PERF_PHASE1" => Ok(RuleVariable::PerfPhase1),
+            "PERF_PHASE2" => Ok(RuleVariable::PerfPhase2),
+            "PERF_PHASE3" => Ok(RuleVariable::PerfPhase3),
+            "PERF_PHASE4" => Ok(RuleVariable::PerfPhase4),
+            "PERF_PHASE5" => Ok(RuleVariable::PerfPhase5),
+            "PERF_RULES" => Ok(RuleVariable::PerfRules),
+            "PERF_SREAD" => Ok(RuleVariable::PerfSread),
+            "PERF_SWRITE" => Ok(RuleVariable::PerfSwrite),
+            "QUERY_STRING" => Ok(RuleVariable::QueryString),
+            "REMOTE_ADDR" => Ok(RuleVariable::RemoteAddr),
+            "REMOTE_HOST" => Ok(RuleVariable::RemoteHost),
+            "REMOTE_PORT" => Ok(RuleVariable::RemotePort),
+            "REMOTE_USER" => Ok(RuleVariable::RemoteUser),
+            "REQBODY_ERROR" => Ok(RuleVariable::ReqbodyError),
+            "REQBODY_ERROR_MSG" => Ok(RuleVariable::ReqbodyErrorMsg),
+            "REQBODY_PROCESSOR" => Ok(RuleVariable::ReqbodyProcessor),
+            "REQUEST_BASENAME" => Ok(RuleVariable::RequestBasename),
+            "REQUEST_BODY" => Ok(RuleVariable::RequestBody),
+            "REQUEST_BODY_LENGTH" => Ok(RuleVariable::RequestBodyLength),
+            "REQUEST_COOKIES" => Ok(RuleVariable::RequestCookies),
+            "REQUEST_COOKIES_NAMES" => Ok(RuleVariable::RequestCookiesNames),
+            "REQUEST_FILENAME" => Ok(RuleVariable::RequestFilename),
+            "REQUEST_HEADERS" => Ok(RuleVariable::RequestHeaders),
+            "REQUEST_HEADERS_NAMES" => Ok(RuleVariable::RequestHeadersNames),
+            "REQUEST_LINE" => Ok(RuleVariable::RequestLine),
+            "REQUEST_METHOD" => Ok(RuleVariable::RequestMethod),
+            "REQUEST_PROTOCOL" => Ok(RuleVariable::RequestProtocol),
+            "REQUEST_URI" => Ok(RuleVariable::RequestUri),
+            "REQUEST_URI_RAW" => Ok(RuleVariable::RequestUriRaw),
+            "RESPONSE_BODY" => Ok(RuleVariable::ResponseBody),
+            "RESPONSE_CONTENT_LENGTH" => Ok(RuleVariable::ResponseContentLength),
+            "RESPONSE_CONTENT_TYPE" => Ok(RuleVariable::ResponseContentType),
+            "RESPONSE_HEADERS" => Ok(RuleVariable::ResponseHeaders),
+            "RESPONSE_HEADERS_NAMES" => Ok(RuleVariable::ResponseHeadersNames),
+            "RESPONSE_PROTOCOL" => Ok(RuleVariable::ResponseProtocol),
+            "RESPONSE_STATUS" => Ok(RuleVariable::ResponseStatus),
+            "RULE" => Ok(RuleVariable::Rule),
+            "SCRIPT_BASENAME" => Ok(RuleVariable::ScriptBasename),
+            "SCRIPT_FILENAME" => Ok(RuleVariable::ScriptFilename),
+            "SCRIPT_GID" => Ok(RuleVariable::ScriptGid),
+            "SCRIPT_GROUPNAME" => Ok(RuleVariable::ScriptGroupname),
+            "SCRIPT_MODE" => Ok(RuleVariable::ScriptMode),
+            "SCRIPT_UID" => Ok(RuleVariable::ScriptUid),
+            "SCRIPT_USERNAME" => Ok(RuleVariable::ScriptUsername),
+            "SDBM_DELETE_ERROR" => Ok(RuleVariable::SdbmDeleteError),
+            "SERVER_ADDR" => Ok(RuleVariable::ServerAddr),
+            "SERVER_NAME" => Ok(RuleVariable::ServerName),
+            "SERVER_PORT" => Ok(RuleVariable::ServerPort),
+            "SESSION" => Ok(RuleVariable::Session),
+            "SESSIONID" => Ok(RuleVariable::Sessionid),
+            "STATUS_LINE" => Ok(RuleVariable::StatusLine),
+            "STREAM_INPUT_BODY" => Ok(RuleVariable::StreamInputBody),
+            "STREAM_OUTPUT_BODY" => Ok(RuleVariable::StreamOutputBody),
+            "TIME" => Ok(RuleVariable::Time),
+            "TIME_DAY" => Ok(RuleVariable::TimeDay),
+            "TIME_EPOCH" => Ok(RuleVariable::TimeEpoch),
+            "TIME_HOUR" => Ok(RuleVariable::TimeHour),
+            "TIME_MIN" => Ok(RuleVariable::TimeMin),
+            "TIME_MON" => Ok(RuleVariable::TimeMon),
+            "TIME_SEC" => Ok(RuleVariable::TimeSec),
+            "TIME_WDAY" => Ok(RuleVariable::TimeWday),
+            "TIME_YEAR" => Ok(RuleVariable::TimeYear),
+            "TX" => Ok(RuleVariable::Tx),
+            "UNIQUE_ID" => Ok(RuleVariable::UniqueId),
+            "URLENCODED_ERROR" => Ok(RuleVariable::UrlencodedError),
+            "USERID" => Ok(RuleVariable::Userid),
+            "USERAGENT_IP" => Ok(RuleVariable::UseragentIp),
+            "WEBAPPID" => Ok(RuleVariable::Webappid),
+            "WEBSERVER_ERROR_LOG" => Ok(RuleVariable::WebserverErrorLog),
+            "XML" => Ok(RuleVariable::Xml),
+            _ => Err(()),
+        }
+    }
+}
+
+pub fn parse_variables(input: &str) -> IResult<&str, Vec<RuleVariable>> {
+    context(
+        "rule variable",
+        tuple(
+            (
+                space1,
+                alt(
+                    (
+                        tag("REQUEST_FILENAME"),
+                        tag("SESSIONID"),
+                    )
+                ),
+            )
+        ),
+    )(input).map(|(next_input, result)| {
+        (next_input, vec![result.1.into()])
+    })
+}
+
+#[test]
+fn parse_variables_should_parse_one_variable() {
+    assert_eq!(parse_variables("MULTIPART_NAME").unwrap().1[0], RuleVariable::MultipartName)
+}
+
+#[test]
+fn parse_variables_should_parse_multiple_variables() {
+    panic!("Fail")
 }
