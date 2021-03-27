@@ -9,9 +9,9 @@ use nom::combinator::opt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuleOperator {
-    negated: bool,
-    operator_type: RuleOperatorType,
-    argument: String,
+    pub negated: bool,
+    pub operator_type: RuleOperatorType,
+    pub argument: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
