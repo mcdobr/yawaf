@@ -5,7 +5,7 @@ use nom::sequence::tuple;
 use nom::character::complete::space1;
 use crate::rules_parser::rule_directive::RuleDirective;
 use crate::rules_parser::rule_variable::RuleVariable;
-use crate::rules_parser::{rule_directive, rule_variable};
+use crate::rules_parser::{rule_directive, rule_variable, rule_operator};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -29,10 +29,12 @@ fn parse_rule(input: &str) -> IResult<&str, Rule> {
             rule_directive::parse_directive,
             space1,
             rule_variable::parse_variables,
+            space1,
+            rule_operator::parse_operator,
         )),
     )(input)
         .map(|(next_input, result)| {
-            let (directive, _, variables) = result;
+            let (directive, _, variables, _, rule_operator) = result;
             return (next_input,
                     Rule {
                         directive,
