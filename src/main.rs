@@ -1,8 +1,8 @@
-mod rule;
 mod reverse_proxy;
 mod waf_running_mode;
-mod rule_directive;
-mod rule_variable;
+
+pub mod rules_parser;
+
 
 use hyper::service::{make_service_fn, service_fn};
 use std::convert::Infallible;
@@ -34,7 +34,7 @@ hosts:
         authority: "example.com".to_owned(),
         // WAF specific properties
         rules: vec![],
-        running_mode: DetectionOnly
+        running_mode: DetectionOnly,
     });
 
     let address = SocketAddr::from(([127, 0, 0, 1], 3030));

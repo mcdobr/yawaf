@@ -2,7 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::error::context;
 use nom::IResult;
-use crate::rule_directive;
+use crate::rules_parser::rule_directive;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RuleDirective {

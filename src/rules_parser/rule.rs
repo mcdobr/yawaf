@@ -2,11 +2,10 @@ use hyper::{Body, Request};
 use nom::error::context;
 use nom::IResult;
 use nom::sequence::tuple;
-
-use crate::{rule_directive, rule_variable};
-use crate::rule_directive::RuleDirective;
-use crate::rule_variable::RuleVariable;
 use nom::character::complete::space1;
+use crate::rules_parser::rule_directive::RuleDirective;
+use crate::rules_parser::rule_variable::RuleVariable;
+use crate::rules_parser::{rule_directive, rule_variable};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
