@@ -1,7 +1,7 @@
 use hyper::{Client, Request, Body, Response, Error, HeaderMap, Uri};
 use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
-use crate::rule::Rule;
+use crate::rules_parser::rule::Rule;
 use crate::waf_running_mode::WafRunningMode;
 use crate::waf_running_mode::WafRunningMode::Off;
 
