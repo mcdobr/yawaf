@@ -1,10 +1,8 @@
 use nom::IResult;
-use nom::sequence::tuple;
-use nom::bytes::complete::{tag, take_until, take_while};
+use nom::sequence::{tuple, delimited};
+use nom::bytes::complete::{tag, take_until};
 use nom::error::context;
-use nom::character::is_alphabetic;
 use nom::character::complete::{space1, alpha1};
-use nom::character::complete::space0;
 use nom::combinator::opt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -105,16 +103,18 @@ impl std::convert::From<&str> for RuleOperatorType {
 pub fn parse_operator(input: &str) -> IResult<&str, RuleOperator> {
     context(
         "rule operator",
-        tuple((
+        delimited(
             tag("\""),
-            opt(tag("!")),
-            tag("@"),
-            alpha1,
-            space1,
-            take_until("\"")
-        )),
+            tuple((
+                opt(tag("!")),
+                tag("@"),
+                alpha1,
+                space1,
+                take_until("\""))),
+            tag("\""),
+        ),
     )(input).map(|(next_input, parsing_result)| {
-        let (_, negated_opt, _, operator_type_str, _, argument) = parsing_result;
+        let (negated_opt, _, operator_type_str, _, argument) = parsing_result;
         return (next_input,
                 RuleOperator {
                     negated: negated_opt.is_some(),
