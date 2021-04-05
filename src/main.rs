@@ -2,6 +2,7 @@ mod reverse_proxy;
 mod waf_running_mode;
 
 pub mod rules_parser;
+mod waf_error;
 
 
 use hyper::service::{make_service_fn, service_fn};
@@ -14,14 +15,16 @@ use crate::waf_running_mode::WafRunningMode::DetectionOnly;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(env_logger::Env::default()
+        .default_filter_or("debug")
+    )
+        .init();
 
     let _config: &str =
         "
 hosts:
     - example.com
     - 127.0.0.1:10000
-
     ";
 
 

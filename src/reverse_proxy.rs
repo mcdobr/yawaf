@@ -3,7 +3,8 @@ use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
 use crate::rules_parser::rule::Rule;
 use crate::waf_running_mode::WafRunningMode;
-use crate::waf_running_mode::WafRunningMode::Off;
+use crate::waf_running_mode::WafRunningMode::{Off, On};
+use crate::waf_error::WafError;
 
 pub(crate) struct ReverseProxy {
     pub(crate) scheme: String,
@@ -17,25 +18,25 @@ pub(crate) struct ReverseProxy {
 }
 
 impl ReverseProxy {
-    pub(crate) async fn handle_request(&self, mut request: Request<Body>) -> Result<Response<Body>, Error> {
+    pub(crate) async fn handle_request(&self, mut request: Request<Body>)
+                                       -> Result<Response<Body>, WafError>
+    {
         // Inspect the request based on rules
         if self.running_mode != Off {
             let matched_rules: Vec<Rule> = self.rules.iter()
                 .filter(|rule| {
-                    if rule.matches(&request) {
-                        return true;
-                    } else {
-                        return false;
-                    }
+                    return rule.matches(&request);
                 })
                 .cloned()
                 .collect();
 
             if !matched_rules.is_empty() {
-                // log the request here
+                log::warn!("Request {:?} matches: {:?}", request, matched_rules);
 
-
-                // drop the request and do not forward to upstream server
+                if self.running_mode == On {
+                    log::warn!("Blocking request {:?}", request);
+                    return Err(WafError::new("Blocked request"));
+                }
             }
         }
 
