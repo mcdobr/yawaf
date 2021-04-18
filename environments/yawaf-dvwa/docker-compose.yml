@@ -1,0 +1,10 @@
+version: "3.0"
+services:
+  dvwa:
+    image: vulnerables/web-dvwa
+    ports:
+      - "8000:80"
+  yawaf:
+    image: yawaf
+    ports:
+      - "80:80"
