@@ -24,7 +24,7 @@ impl Rule {
     }
 }
 
-fn parse_rule(input: &str) -> IResult<&str, Rule> {
+pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
     context(
         "rule",
         tuple((
