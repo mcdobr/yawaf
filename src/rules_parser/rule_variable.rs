@@ -4,7 +4,6 @@ use nom::error::context;
 use nom::IResult;
 
 use strum_macros::{EnumVariantNames};
-use strum::VariantNames;
 use nom::multi::separated_list0;
 
 #[derive(Clone, Debug, PartialEq, EnumVariantNames)]
