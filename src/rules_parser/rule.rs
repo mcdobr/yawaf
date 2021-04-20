@@ -6,8 +6,8 @@ use nom::character::complete::{multispace1};
 use crate::rules_parser::rule_directive::RuleDirective;
 use crate::rules_parser::rule_variable::RuleVariable;
 use crate::rules_parser::{rule_directive, rule_variable, rule_operator, rule_action};
-use crate::rules_parser::rule_operator::{RuleOperator};
-use crate::rules_parser::rule_action::{RuleAction};
+use crate::rules_parser::rule_operator::{RuleOperator, RuleOperatorType};
+use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {

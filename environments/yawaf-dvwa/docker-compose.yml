@@ -8,3 +8,5 @@ services:
     image: yawaf
     ports:
       - "80:80"
+    environment:
+      YAWAF_UPSTREAM: http://dvwa
