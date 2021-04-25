@@ -1,6 +1,5 @@
 use config::{ConfigError, Config, File, Environment};
 use serde::Deserialize;
-use hyper::Uri;
 
 #[derive(Debug, Deserialize)]
 pub struct WafSettings {
