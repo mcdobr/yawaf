@@ -1,4 +1,4 @@
-use hyper::{Client, Request, Body, Response, Error, HeaderMap, Uri};
+use hyper::{Client, Request, Body, Response, HeaderMap, Uri};
 use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
 use crate::rules_parser::rule::Rule;
