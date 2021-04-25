@@ -5,7 +5,6 @@ pub mod rules_parser;
 mod waf_error;
 mod waf_settings;
 
-
 use hyper::service::{make_service_fn, service_fn};
 use std::convert::Infallible;
 use hyper::{Server, Client};
@@ -22,22 +21,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     )
         .init();
 
-    let waf_settings = WafSettings::new();
-    println!("{:?}", waf_settings);
-
+    let waf_settings = WafSettings::new().unwrap();
     let http_connector = HttpConnector::new();
     let http_client = Client::builder().build(http_connector);
 
     let reverse_proxy = std::sync::Arc::new(ReverseProxy {
         client: http_client,
         scheme: "http".to_owned(),
-        authority: "example.com".to_owned(),
+        authority: waf_settings.authority,
         // WAF specific properties
         rules: vec![],
         running_mode: DetectionOnly,
     });
 
-    let address = SocketAddr::from(([127, 0, 0, 1], 3030));
+    let address = SocketAddr::from(([0, 0, 0, 0], waf_settings.port));
 
     let service = make_service_fn(move |_connection| {
         let reverse_proxy_service_ref = reverse_proxy.clone();

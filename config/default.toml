@@ -1,2 +1,4 @@
 debug = true
 upstream = "upstream-url"
+authority = "localhost:8000"
+port = 80

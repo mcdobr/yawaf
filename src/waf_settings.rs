@@ -1,12 +1,14 @@
-// use crate::waf_running_mode::WafRunningMode;
 use config::{ConfigError, Config, File, Environment};
 use serde::Deserialize;
+use hyper::Uri;
 
 #[derive(Debug, Deserialize)]
 pub struct WafSettings {
-    debug: bool,
+    pub debug: bool,
+    pub authority: String,
+    pub port: u16,
+    pub upstream: String,
     // running_mode: WafRunningMode,
-    upstream: String,
 }
 
 impl WafSettings {
@@ -18,7 +20,9 @@ impl WafSettings {
         // YAWAF_UPSTREAM would set the upstream
         config.merge(Environment::with_prefix("yawaf"))?;
 
-        log::debug!("upstream url: {:?}", config.get::<String>("upstream"));
-        return config.try_into();
+        log::debug!("Loaded configuration = {:?}", config);
+        let result = config.try_into();
+        log::info!("Loaded WAF settings = {:?}", result);
+        return result;
     }
 }

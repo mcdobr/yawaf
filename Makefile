@@ -13,3 +13,6 @@ docker-build-no-cache:
 
 docker-debug:
 	@docker run -it --entrypoint /bin/sh mcdobr/yawaf:latest
+
+docker-run:
+	@docker-compose --file environments/yawaf-dvwa/docker-compose.yml up
