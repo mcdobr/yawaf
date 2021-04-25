@@ -1,3 +1,5 @@
+extern crate libinjection;
+
 mod reverse_proxy;
 mod waf_running_mode;
 
@@ -13,7 +15,6 @@ use hyper::{Server, Client};
 use std::net::SocketAddr;
 use hyper::client::HttpConnector;
 use crate::reverse_proxy::ReverseProxy;
-use crate::waf_running_mode::WafRunningMode::DetectionOnly;
 use crate::waf_settings::WafSettings;
 use crate::waf::WebApplicationFirewall;
 use crate::waf_running_mode::WafRunningMode;
@@ -38,9 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         client: http_client,
         scheme: "http".to_owned(),
         authority: waf_settings.authority,
-        // WAF specific properties
-        rules: vec![],
-        running_mode: DetectionOnly,
+        web_application_firewall: waf,
     });
 
     let address = SocketAddr::from(([0, 0, 0, 0], waf_settings.port));
