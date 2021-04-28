@@ -9,7 +9,6 @@ use crate::rules_parser::{rule_directive, rule_variable, rule_operator, rule_act
 use crate::rules_parser::rule_operator::{RuleOperator, RuleOperatorType};
 use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
 use hyper::http::uri::PathAndQuery;
-use libinjection::sqli;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -22,9 +21,9 @@ pub struct Rule {
 
 impl Rule {
     pub(crate) fn matches(&self, request: &Request<Body>) -> bool {
-        let values : Vec<String> = self.variables.clone()
+        let values: Vec<String> = self.variables.clone()
             .into_iter()
-            .map(|var| extract_from(request, var))
+            .map(|var| extract_from(request, &var))
             .collect();
         return values
             .iter()
@@ -32,7 +31,7 @@ impl Rule {
     }
 }
 
-fn extract_from(request: &Request<Body>, rule_var: RuleVariable) -> String {
+fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> String {
     return match rule_var {
         RuleVariable::Args => unimplemented!("Not implemented yet!"),
         RuleVariable::ArgsCombinedSize => unimplemented!("Not implemented yet!"),
@@ -93,8 +92,16 @@ fn extract_from(request: &Request<Body>, rule_var: RuleVariable) -> String {
         RuleVariable::RequestCookies => unimplemented!("Not implemented yet!"),
         RuleVariable::RequestCookiesNames => unimplemented!("Not implemented yet!"),
         RuleVariable::RequestFilename => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestHeaders => request.headers().keys().map(|key| key.as_str()).collect(),
-        RuleVariable::RequestHeadersNames => unimplemented!("Not implemented yet!"),
+        RuleVariable::RequestHeaders => request.headers()
+            .iter()
+            .map(|(key, value)| key.to_string() + ": " + value.to_str().unwrap_or(""))
+            .collect::<Vec<String>>()
+            .join("\n"),
+        RuleVariable::RequestHeadersNames => request.headers()
+            .keys()
+            .map(|key| key.to_string())
+            .collect::<Vec<String>>()
+            .join("\n"),
         RuleVariable::RequestLine => unimplemented!("Not implemented yet!"),
         RuleVariable::RequestMethod => request.method().to_string(),
         RuleVariable::RequestProtocol => unimplemented!("Not implemented yet!"),
@@ -177,6 +184,32 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
                     }
             );
         })
+}
+
+#[test]
+fn extract_variables_should_extract_headers() {
+    let request = Request::builder()
+        .method("POST")
+        .header("abcd", "qwerty")
+        .header("ader", "<script>alert(1);</script>")
+        .body(Body::empty())
+        .unwrap();
+    let rule = Rule {
+        directive: RuleDirective::SecRule,
+        variables: vec![RuleVariable::RequestHeaders],
+        operator: RuleOperator {
+            negated: false,
+            operator_type: RuleOperatorType::DetectXSS,
+            argument: "".to_string(),
+        },
+        transformations: "".to_string(),
+        actions: vec![],
+    };
+
+    let str = extract_from(&request, &rule.variables[0]);
+    println!("{}", str);
+    assert!(!str.is_empty());
+    assert!(rule.matches(&request));
 }
 
 

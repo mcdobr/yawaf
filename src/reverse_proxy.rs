@@ -16,14 +16,14 @@ impl ReverseProxy {
                                        -> Result<Response<Body>, WafError>
     {
         // Rewrite the request to pass it forward to upstream servers
+        *request.headers_mut() = self.whitelist_headers(&request);
         *request.uri_mut() = self.rewrite_uri(&request);
-        *request.headers_mut() = self.build_header_map(&request);
 
         self.web_application_firewall.inspect_request(&request);
 
         log::debug!("Request == {:?}", request);
         let response = self.client.request(request).await.unwrap();
-        log::debug!("Response == {:?}", response);
+        // log::debug!("Response == {:?}", response);
         return Ok(response);
     }
 
@@ -39,16 +39,17 @@ impl ReverseProxy {
         return uri_builder.build().unwrap();
     }
 
-    fn build_header_map(&self, request: &Request<Body>) -> HeaderMap<HeaderValue> {
+    fn whitelist_headers(&self, request: &Request<Body>) -> HeaderMap<HeaderValue> {
         // Remove headers not whitelisted
-        const ALLOWED_HEADERS: [&str; 4] = [
+        const ALLOWED_HEADERS: [&str; 7] = [
+            // "host",
+            "content-type",
             "accept",
             "user-agent",
-            "DNT",
-            "X-Forwarded-For"
-            // hyper::header::HOST.as_str()
-            // hyper::header::ACCEPT.as_str().clone(),
-            // hyper::header::USER_AGENT.as_str().clone()
+            "dnt",
+            "x-forwarded-for",
+            "x-real-ip",
+            "abcd",
         ];
 
         let mut filtered_headers = HeaderMap::new();
@@ -58,14 +59,7 @@ impl ReverseProxy {
             }
         }
 
-        // if filtered_headers.contains_key("X-Forwarded-For") {
-        //     let xForwardedFor = filtered_headers.get_mut("X-Forwarded-For");
-        //
-        // } else {
-        //     request.get
-        // }
-
-
+        // todo: add x-forwarded-for and x-real-ip logic
         return filtered_headers;
     }
 }

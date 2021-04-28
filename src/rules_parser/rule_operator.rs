@@ -4,7 +4,7 @@ use nom::bytes::complete::{tag, take_until};
 use nom::error::context;
 use nom::character::complete::{alpha1, space0};
 use nom::combinator::opt;
-use libinjection::sqli;
+use libinjection::{sqli, xss};
 use std::convert::identity;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -135,7 +135,7 @@ impl RuleOperator {
             RuleOperatorType::Contains => unimplemented!("Not implemented yet!"),
             RuleOperatorType::ContainsWord => unimplemented!("Not implemented yet!"),
             RuleOperatorType::DetectSQLi => detect_sqli,
-            RuleOperatorType::DetectXSS => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::DetectXSS => detect_xss,
             RuleOperatorType::EndsWith => unimplemented!("Not implemented yet!"),
             RuleOperatorType::FuzzyHash => unimplemented!("Not implemented yet!"),
             RuleOperatorType::Eq => unimplemented!("Not implemented yet!"),
@@ -175,9 +175,14 @@ impl RuleOperator {
 }
 
 fn detect_sqli(input: &str) -> bool {
-    let (is_sql_injection, _fingerprint) = sqli(input)
+    let (is_raw_sql_injection, _fingerprint) = sqli(input)
         .map_or((false, "abcd".to_owned()), identity);
-    return is_sql_injection;
+    return is_raw_sql_injection;
+}
+
+fn detect_xss(input: &str) -> bool {
+    let is_xss = xss(input).unwrap_or(false);
+    return is_xss;
 }
 
 #[test]
