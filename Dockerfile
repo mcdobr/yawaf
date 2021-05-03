@@ -1,7 +1,7 @@
 FROM rust as builder
 WORKDIR yawaf
 COPY . .
-RUN apt update && apt install -y libclang-dev
+RUN apt update && apt install -y libclang-dev clang
 RUN ./copy_config.sh build --release --bin yawaf
 
 FROM debian:stable-slim 

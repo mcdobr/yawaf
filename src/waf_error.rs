@@ -3,7 +3,7 @@ use std::fmt;
 use std::error::Error;
 
 #[derive(Debug)]
-pub(crate) struct WafError {
+pub struct WafError {
     details: String
 }
 

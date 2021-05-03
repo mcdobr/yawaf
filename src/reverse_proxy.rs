@@ -1,52 +1,29 @@
 use hyper::{Client, Request, Body, Response, HeaderMap, Uri};
 use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
-use crate::rules_parser::rule::Rule;
-use crate::waf_running_mode::WafRunningMode;
-use crate::waf_running_mode::WafRunningMode::{Off, On};
 use crate::waf_error::WafError;
+use crate::waf::WebApplicationFirewall;
 
 pub(crate) struct ReverseProxy {
     pub(crate) scheme: String,
     pub(crate) authority: String,
     pub(crate) client: Client<HttpConnector>,
-
-    // TODO: Needed for WAF; need to determine if to use composition and just have WAF
-    //  inspect the request and then pass it on to reverse proxy
-    pub(crate) rules: Vec<Rule>,
-    pub(crate) running_mode: WafRunningMode,
+    pub(crate) web_application_firewall: WebApplicationFirewall,
 }
 
 impl ReverseProxy {
     pub(crate) async fn handle_request(&self, mut request: Request<Body>)
                                        -> Result<Response<Body>, WafError>
     {
-        // Inspect the request based on rules
-        if self.running_mode != Off {
-            let matched_rules: Vec<Rule> = self.rules.iter()
-                .filter(|rule| {
-                    return rule.matches(&request);
-                })
-                .cloned()
-                .collect();
-
-            if !matched_rules.is_empty() {
-                log::warn!("Request {:?} matches: {:?}", request, matched_rules);
-
-                if self.running_mode == On {
-                    log::warn!("Blocking request {:?}", request);
-                    return Err(WafError::new("Blocked request"));
-                }
-            }
-        }
-
         // Rewrite the request to pass it forward to upstream servers
+        *request.headers_mut() = self.whitelist_headers(&request);
         *request.uri_mut() = self.rewrite_uri(&request);
-        *request.headers_mut() = self.build_header_map(&request);
+
+        self.web_application_firewall.inspect_request(&request);
 
         log::debug!("Request == {:?}", request);
         let response = self.client.request(request).await.unwrap();
-        log::debug!("Response == {:?}", response);
+        // log::debug!("Response == {:?}", response);
         return Ok(response);
     }
 
@@ -62,16 +39,17 @@ impl ReverseProxy {
         return uri_builder.build().unwrap();
     }
 
-    fn build_header_map(&self, request: &Request<Body>) -> HeaderMap<HeaderValue> {
+    fn whitelist_headers(&self, request: &Request<Body>) -> HeaderMap<HeaderValue> {
         // Remove headers not whitelisted
-        const ALLOWED_HEADERS: [&str; 4] = [
+        const ALLOWED_HEADERS: [&str; 7] = [
+            // "host",
+            "content-type",
             "accept",
             "user-agent",
-            "DNT",
-            "X-Forwarded-For"
-            // hyper::header::HOST.as_str()
-            // hyper::header::ACCEPT.as_str().clone(),
-            // hyper::header::USER_AGENT.as_str().clone()
+            "dnt",
+            "x-forwarded-for",
+            "x-real-ip",
+            "abcd",
         ];
 
         let mut filtered_headers = HeaderMap::new();
@@ -81,14 +59,7 @@ impl ReverseProxy {
             }
         }
 
-        // if filtered_headers.contains_key("X-Forwarded-For") {
-        //     let xForwardedFor = filtered_headers.get_mut("X-Forwarded-For");
-        //
-        // } else {
-        //     request.get
-        // }
-
-
+        // todo: add x-forwarded-for and x-real-ip logic
         return filtered_headers;
     }
 }

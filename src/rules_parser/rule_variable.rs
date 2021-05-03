@@ -63,6 +63,7 @@ pub enum RuleVariable {
     ReqbodyError,
     ReqbodyErrorMsg,
     ReqbodyProcessor,
+    /// This variable holds just the filename part of REQUEST_FILENAME (e.g., index.php).
     RequestBasename,
     RequestBody,
     RequestBodyLength,
@@ -74,6 +75,9 @@ pub enum RuleVariable {
     RequestLine,
     RequestMethod,
     RequestProtocol,
+    /// This variable holds the full request URL including the query string
+    /// data (e.g., /index.php? p=X). However, it will never contain a domain name, even if it
+    /// was provided on the request line.
     RequestUri,
     RequestUriRaw,
     ResponseBody,

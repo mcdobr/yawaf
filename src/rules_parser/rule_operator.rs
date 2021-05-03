@@ -2,8 +2,10 @@ use nom::IResult;
 use nom::sequence::{tuple, delimited};
 use nom::bytes::complete::{tag, take_until};
 use nom::error::context;
-use nom::character::complete::{space1, alpha1};
+use nom::character::complete::{alpha1, space0};
 use nom::combinator::opt;
+use libinjection::{sqli, xss};
+use std::convert::identity;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuleOperator {
@@ -109,8 +111,9 @@ pub fn parse_operator(input: &str) -> IResult<&str, RuleOperator> {
                 opt(tag("!")),
                 tag("@"),
                 alpha1,
-                space1,
-                take_until("\""))),
+                space0,
+                take_until("\""))
+            ),
             tag("\""),
         ),
     )(input).map(|(next_input, parsing_result)| {
@@ -123,6 +126,63 @@ pub fn parse_operator(input: &str) -> IResult<&str, RuleOperator> {
                 }
         );
     })
+}
+
+impl RuleOperator {
+    pub fn to_operation(&self) -> fn(&str) -> bool {
+        let operation = match self.operator_type {
+            RuleOperatorType::BeginsWith => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Contains => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::ContainsWord => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::DetectSQLi => detect_sqli,
+            RuleOperatorType::DetectXSS => detect_xss,
+            RuleOperatorType::EndsWith => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::FuzzyHash => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Eq => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Ge => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::GeoLookup => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::GsbLookup => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Gt => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::InspectFile => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::IpMatch => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::IpMatchF => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::IpMatchFromFile => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Le => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Lt => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::NoMatch => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Pm => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Pmf => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::PmFromFile => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Rbl => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Rsub => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Rx => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::StrEq => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::StrMatch => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::UnconditionalMatch => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::ValidateByteRange => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::ValidateDTD => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::ValidateHash => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::ValidateSchema => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::ValidateUrlEncoding => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::ValidateUtf8Encoding => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::VerifyCC => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::VerifyCPF => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::VerifySSN => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Within => unimplemented!("Not implemented yet!"),
+        };
+        return operation;
+    }
+}
+
+fn detect_sqli(input: &str) -> bool {
+    let (is_raw_sql_injection, _fingerprint) = sqli(input)
+        .map_or((false, "abcd".to_owned()), identity);
+    return is_raw_sql_injection;
+}
+
+fn detect_xss(input: &str) -> bool {
+    let is_xss = xss(input).unwrap_or(false);
+    return is_xss;
 }
 
 #[test]
