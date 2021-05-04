@@ -4,6 +4,8 @@ use hyper::{Request, Body};
 use crate::waf_error::WafError;
 use crate::waf_running_mode::WafRunningMode::{Off, On};
 use std::net::SocketAddr;
+use crate::rules_parser::rule_variable::RuleVariableType::RequestHeaders;
+use hyper::header::COOKIE;
 
 pub struct WebApplicationFirewall {
     pub(crate) rules: Vec<Rule>,
@@ -95,5 +97,19 @@ fn should_match_port() {
         .unwrap();
 
     request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 1000)));
+    assert!(rule.matches(&request));
+}
+
+#[test]
+fn should_match_count_cookies() {
+    let rule = parse_rule(r###"SecRule &REQUEST_COOKIES "@eq 1" "id:44""###)
+        .unwrap().1;
+    let request = Request::builder()
+        .method("POST")
+        .uri("http://example.com")
+        .header(COOKIE, "abcd=efgh")
+        .body(Body::empty())
+        .unwrap();
+
     assert!(rule.matches(&request));
 }

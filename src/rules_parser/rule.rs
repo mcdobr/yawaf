@@ -4,12 +4,13 @@ use nom::IResult;
 use nom::sequence::tuple;
 use nom::character::complete::{multispace1};
 use crate::rules_parser::rule_directive::RuleDirective;
-use crate::rules_parser::rule_variable::RuleVariable;
+use crate::rules_parser::rule_variable::{RuleVariableType, RuleVariable};
 use crate::rules_parser::{rule_directive, rule_variable, rule_operator, rule_action};
 use crate::rules_parser::rule_operator::{RuleOperator, RuleOperatorType};
 use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
 use hyper::http::uri::PathAndQuery;
 use std::net::SocketAddr;
+use hyper::header::COOKIE;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -24,7 +25,15 @@ impl Rule {
     pub(crate) fn matches(&self, request: &Request<Body>) -> bool {
         let values: Vec<String> = self.variables.clone()
             .into_iter()
-            .flat_map(|var| extract_from(request, &var))
+            .flat_map(|var| {
+                let extracted_values = extract_from(request, &var);
+                // todo: hacky for now, pass a vector with the number in string form until i can
+                //  figure out how i should express this for the type system or redesign this
+                match var.count {
+                    true => vec![extracted_values.len().to_string()],
+                    false => extracted_values,
+                }
+            })
             .collect();
         return values
             .iter()
@@ -33,123 +42,126 @@ impl Rule {
 }
 
 fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> Vec<String> {
-    return match rule_var {
-        RuleVariable::Args => unimplemented!("Not implemented yet!"),
-        RuleVariable::ArgsCombinedSize => unimplemented!("Not implemented yet!"),
-        RuleVariable::ArgsGet => vec![request.uri().query().unwrap_or_else(|| "").to_string()],
-        RuleVariable::ArgsGetNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::ArgsNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::ArgsPost => unimplemented!("Not implemented yet!"),
-        RuleVariable::ArgsPostNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::AuthType => unimplemented!("Not implemented yet!"),
-        RuleVariable::Duration => unimplemented!("Not implemented yet!"),
-        RuleVariable::Env => unimplemented!("Not implemented yet!"),
-        RuleVariable::Files => unimplemented!("Not implemented yet!"),
-        RuleVariable::FilesCombinedSize => unimplemented!("Not implemented yet!"),
-        RuleVariable::FilesNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::FullRequest => unimplemented!("Not implemented yet!"),
-        RuleVariable::FullRequestLength => unimplemented!("Not implemented yet!"),
-        RuleVariable::FilesSizes => unimplemented!("Not implemented yet!"),
-        RuleVariable::FilesTempNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::FilesTmpContent => unimplemented!("Not implemented yet!"),
-        RuleVariable::Geo => unimplemented!("Not implemented yet!"),
-        RuleVariable::HighestSeverity => unimplemented!("Not implemented yet!"),
-        RuleVariable::InboundDataError => unimplemented!("Not implemented yet!"),
-        RuleVariable::MatchedVar => unimplemented!("Not implemented yet!"),
-        RuleVariable::MatchedVars => unimplemented!("Not implemented yet!"),
-        RuleVariable::MatchedVarName => unimplemented!("Not implemented yet!"),
-        RuleVariable::MatchedVarsNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::ModsecBuild => unimplemented!("Not implemented yet!"),
-        RuleVariable::MultipartCrlfLfLines => unimplemented!("Not implemented yet!"),
-        RuleVariable::MultipartFilename => unimplemented!("Not implemented yet!"),
-        RuleVariable::MultipartName => unimplemented!("Not implemented yet!"),
-        RuleVariable::MultipartStrictError => unimplemented!("Not implemented yet!"),
-        RuleVariable::MultipartUnmatchedBoundary => unimplemented!("Not implemented yet!"),
-        RuleVariable::OutboundDataError => unimplemented!("Not implemented yet!"),
-        RuleVariable::PathInfo => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfAll => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfCombined => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfGc => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfLogging => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfPhase1 => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfPhase2 => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfPhase3 => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfPhase4 => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfPhase5 => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfRules => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfSread => unimplemented!("Not implemented yet!"),
-        RuleVariable::PerfSwrite => unimplemented!("Not implemented yet!"),
-        RuleVariable::QueryString => unimplemented!("Not implemented yet!"),
-        RuleVariable::RemoteAddr => vec![request.extensions().get::<SocketAddr>().unwrap()
+    return match rule_var.variable_type {
+        RuleVariableType::Args => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ArgsCombinedSize => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ArgsGet => vec![request.uri().query().unwrap_or_else(|| "").to_string()],
+        RuleVariableType::ArgsGetNames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ArgsNames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ArgsPost => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ArgsPostNames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::AuthType => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Duration => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Env => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Files => unimplemented!("Not implemented yet!"),
+        RuleVariableType::FilesCombinedSize => unimplemented!("Not implemented yet!"),
+        RuleVariableType::FilesNames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::FullRequest => unimplemented!("Not implemented yet!"),
+        RuleVariableType::FullRequestLength => unimplemented!("Not implemented yet!"),
+        RuleVariableType::FilesSizes => unimplemented!("Not implemented yet!"),
+        RuleVariableType::FilesTmpnames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::FilesTmpContent => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Geo => unimplemented!("Not implemented yet!"),
+        RuleVariableType::HighestSeverity => unimplemented!("Not implemented yet!"),
+        RuleVariableType::InboundDataError => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MatchedVar => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MatchedVars => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MatchedVarName => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MatchedVarsNames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ModsecBuild => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MultipartCrlfLfLines => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MultipartFilename => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MultipartName => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MultipartStrictError => unimplemented!("Not implemented yet!"),
+        RuleVariableType::MultipartUnmatchedBoundary => unimplemented!("Not implemented yet!"),
+        RuleVariableType::OutboundDataError => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PathInfo => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfAll => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfCombined => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfGc => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfLogging => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfPhase1 => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfPhase2 => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfPhase3 => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfPhase4 => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfPhase5 => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfRules => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfSread => unimplemented!("Not implemented yet!"),
+        RuleVariableType::PerfSwrite => unimplemented!("Not implemented yet!"),
+        RuleVariableType::QueryString => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RemoteAddr => vec![request.extensions().get::<SocketAddr>().unwrap()
             .ip().to_string()],
-        RuleVariable::RemoteHost => unimplemented!("Not implemented yet!"),
-        RuleVariable::RemotePort => vec![request.extensions().get::<SocketAddr>().unwrap()
+        RuleVariableType::RemoteHost => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RemotePort => vec![request.extensions().get::<SocketAddr>().unwrap()
             .port().to_string()],
-        RuleVariable::RemoteUser => unimplemented!("Not implemented yet!"),
-        RuleVariable::ReqbodyError => unimplemented!("Not implemented yet!"),
-        RuleVariable::ReqbodyErrorMsg => unimplemented!("Not implemented yet!"),
-        RuleVariable::ReqbodyProcessor => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestBasename => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestBody => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestBodyLength => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestCookies => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestCookiesNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestFilename => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestHeaders => request.headers()
+        RuleVariableType::RemoteUser => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ReqbodyError => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ReqbodyErrorMsg => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ReqbodyProcessor => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestBasename => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestBody => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestBodyLength => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestCookies => request.headers().get(COOKIE)
+            .into_iter()
+            .map(|header_value| header_value.to_str().unwrap().to_string())
+            .collect::<Vec<String>>(),
+        RuleVariableType::RequestCookiesNames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestFilename => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestHeaders => request.headers()
             .iter()
             .map(|(key, value)| key.to_string() + ": " + value.to_str().unwrap_or(""))
             .collect::<Vec<String>>(),
-        RuleVariable::RequestHeadersNames => request.headers()
+        RuleVariableType::RequestHeadersNames => request.headers()
             .keys()
             .map(|key| key.to_string())
             .collect::<Vec<String>>(),
-        RuleVariable::RequestLine => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestMethod => vec![request.method().to_string()],
-        RuleVariable::RequestProtocol => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestUri => vec![request.uri().path_and_query()
+        RuleVariableType::RequestLine => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestMethod => vec![request.method().to_string()],
+        RuleVariableType::RequestProtocol => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestUri => vec![request.uri().path_and_query()
             .map_or_else(|| "".to_string(), PathAndQuery::to_string)],
-        RuleVariable::RequestUriRaw => vec![request.uri().to_string()],
-        RuleVariable::ResponseBody => unimplemented!("Not implemented yet!"),
-        RuleVariable::ResponseContentLength => unimplemented!("Not implemented yet!"),
-        RuleVariable::ResponseContentType => unimplemented!("Not implemented yet!"),
-        RuleVariable::ResponseHeaders => unimplemented!("Not implemented yet!"),
-        RuleVariable::ResponseHeadersNames => unimplemented!("Not implemented yet!"),
-        RuleVariable::ResponseProtocol => unimplemented!("Not implemented yet!"),
-        RuleVariable::ResponseStatus => unimplemented!("Not implemented yet!"),
-        RuleVariable::Rule => unimplemented!("Not implemented yet!"),
-        RuleVariable::ScriptBasename => unimplemented!("Not implemented yet!"),
-        RuleVariable::ScriptFilename => unimplemented!("Not implemented yet!"),
-        RuleVariable::ScriptGid => unimplemented!("Not implemented yet!"),
-        RuleVariable::ScriptGroupname => unimplemented!("Not implemented yet!"),
-        RuleVariable::ScriptMode => unimplemented!("Not implemented yet!"),
-        RuleVariable::ScriptUid => unimplemented!("Not implemented yet!"),
-        RuleVariable::ScriptUsername => unimplemented!("Not implemented yet!"),
-        RuleVariable::SdbmDeleteError => unimplemented!("Not implemented yet!"),
-        RuleVariable::ServerAddr => unimplemented!("Not implemented yet!"),
-        RuleVariable::ServerName => unimplemented!("Not implemented yet!"),
-        RuleVariable::ServerPort => unimplemented!("Not implemented yet!"),
-        RuleVariable::Session => unimplemented!("Not implemented yet!"),
-        RuleVariable::Sessionid => unimplemented!("Not implemented yet!"),
-        RuleVariable::StatusLine => unimplemented!("Not implemented yet!"),
-        RuleVariable::StreamInputBody => unimplemented!("Not implemented yet!"),
-        RuleVariable::StreamOutputBody => unimplemented!("Not implemented yet!"),
-        RuleVariable::Time => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeDay => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeEpoch => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeHour => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeMin => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeMon => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeSec => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeWday => unimplemented!("Not implemented yet!"),
-        RuleVariable::TimeYear => unimplemented!("Not implemented yet!"),
-        RuleVariable::Tx => unimplemented!("Not implemented yet!"),
-        RuleVariable::UniqueId => unimplemented!("Not implemented yet!"),
-        RuleVariable::UrlencodedError => unimplemented!("Not implemented yet!"),
-        RuleVariable::Userid => unimplemented!("Not implemented yet!"),
-        RuleVariable::UseragentIp => unimplemented!("Not implemented yet!"),
-        RuleVariable::Webappid => unimplemented!("Not implemented yet!"),
-        RuleVariable::WebserverErrorLog => unimplemented!("Not implemented yet!"),
-        RuleVariable::Xml => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestUriRaw => vec![request.uri().to_string()],
+        RuleVariableType::ResponseBody => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ResponseContentLength => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ResponseContentType => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ResponseHeaders => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ResponseHeadersNames => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ResponseProtocol => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ResponseStatus => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Rule => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ScriptBasename => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ScriptFilename => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ScriptGid => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ScriptGroupname => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ScriptMode => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ScriptUid => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ScriptUsername => unimplemented!("Not implemented yet!"),
+        RuleVariableType::SdbmDeleteError => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ServerAddr => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ServerName => unimplemented!("Not implemented yet!"),
+        RuleVariableType::ServerPort => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Session => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Sessionid => unimplemented!("Not implemented yet!"),
+        RuleVariableType::StatusLine => unimplemented!("Not implemented yet!"),
+        RuleVariableType::StreamInputBody => unimplemented!("Not implemented yet!"),
+        RuleVariableType::StreamOutputBody => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Time => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeDay => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeEpoch => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeHour => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeMin => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeMon => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeSec => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeWday => unimplemented!("Not implemented yet!"),
+        RuleVariableType::TimeYear => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Tx => unimplemented!("Not implemented yet!"),
+        RuleVariableType::UniqueId => unimplemented!("Not implemented yet!"),
+        RuleVariableType::UrlencodedError => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Userid => unimplemented!("Not implemented yet!"),
+        RuleVariableType::UseragentIp => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Webappid => unimplemented!("Not implemented yet!"),
+        RuleVariableType::WebserverErrorLog => unimplemented!("Not implemented yet!"),
+        RuleVariableType::Xml => unimplemented!("Not implemented yet!"),
     };
 }
 
@@ -198,7 +210,10 @@ fn extract_variables_should_extract_headers() {
         .unwrap();
     let rule = Rule {
         directive: RuleDirective::SecRule,
-        variables: vec![RuleVariable::RequestHeaders],
+        variables: vec![RuleVariable {
+            count: false,
+            variable_type: RuleVariableType::RequestHeaders
+        }],
         operator: RuleOperator {
             negated: false,
             operator_type: RuleOperatorType::DetectXSS,
@@ -229,7 +244,10 @@ fn parse_rule_should_extract_basic_elements() {
     assert_eq!(parse_rule(&*raw_rule).unwrap().1,
                Rule {
                    directive: RuleDirective::SecRule,
-                   variables: vec![RuleVariable::RequestFilename],
+                   variables: vec![RuleVariable {
+                       count: false,
+                       variable_type: RuleVariableType::RequestFilename
+                   }],
                    operator: RuleOperator {
                        negated: false,
                        operator_type: RuleOperatorType::EndsWith,

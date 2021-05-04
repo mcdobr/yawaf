@@ -19,6 +19,7 @@ use crate::waf_settings::WafSettings;
 use crate::waf::WebApplicationFirewall;
 use crate::waf_running_mode::WafRunningMode;
 use hyper::server::conn::AddrStream;
+use hyper::http::HeaderValue;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
