@@ -23,7 +23,7 @@ impl Rule {
     pub(crate) fn matches(&self, request: &Request<Body>) -> bool {
         let values: Vec<String> = self.variables.clone()
             .into_iter()
-            .map(|var| extract_from(request, &var))
+            .flat_map(|var| extract_from(request, &var))
             .collect();
         return values
             .iter()
@@ -31,11 +31,11 @@ impl Rule {
     }
 }
 
-fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> String {
+fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> Vec<String> {
     return match rule_var {
         RuleVariable::Args => unimplemented!("Not implemented yet!"),
         RuleVariable::ArgsCombinedSize => unimplemented!("Not implemented yet!"),
-        RuleVariable::ArgsGet => request.uri().query().unwrap_or_else(|| "").to_string(),
+        RuleVariable::ArgsGet => vec![request.uri().query().unwrap_or_else(|| "").to_string()],
         RuleVariable::ArgsGetNames => unimplemented!("Not implemented yet!"),
         RuleVariable::ArgsNames => unimplemented!("Not implemented yet!"),
         RuleVariable::ArgsPost => unimplemented!("Not implemented yet!"),
@@ -95,18 +95,17 @@ fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> String {
         RuleVariable::RequestHeaders => request.headers()
             .iter()
             .map(|(key, value)| key.to_string() + ": " + value.to_str().unwrap_or(""))
-            .collect::<Vec<String>>()
-            .join("\n"),
+            .collect::<Vec<String>>(),
         RuleVariable::RequestHeadersNames => request.headers()
             .keys()
             .map(|key| key.to_string())
-            .collect::<Vec<String>>()
-            .join("\n"),
+            .collect::<Vec<String>>(),
         RuleVariable::RequestLine => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestMethod => request.method().to_string(),
+        RuleVariable::RequestMethod => vec![request.method().to_string()],
         RuleVariable::RequestProtocol => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestUri => request.uri().path_and_query().map_or_else(|| "".to_string(), PathAndQuery::to_string),
-        RuleVariable::RequestUriRaw => request.uri().to_string(),
+        RuleVariable::RequestUri => vec![request.uri().path_and_query()
+            .map_or_else(|| "".to_string(), PathAndQuery::to_string)],
+        RuleVariable::RequestUriRaw => vec![request.uri().to_string()],
         RuleVariable::ResponseBody => unimplemented!("Not implemented yet!"),
         RuleVariable::ResponseContentLength => unimplemented!("Not implemented yet!"),
         RuleVariable::ResponseContentType => unimplemented!("Not implemented yet!"),
@@ -207,7 +206,7 @@ fn extract_variables_should_extract_headers() {
     };
 
     let str = extract_from(&request, &rule.variables[0]);
-    println!("{}", str);
+    println!("{:?}", str);
     assert!(!str.is_empty());
     assert!(rule.matches(&request));
 }
