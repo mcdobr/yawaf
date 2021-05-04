@@ -9,6 +9,7 @@ use crate::rules_parser::{rule_directive, rule_variable, rule_operator, rule_act
 use crate::rules_parser::rule_operator::{RuleOperator, RuleOperatorType};
 use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
 use hyper::http::uri::PathAndQuery;
+use std::net::SocketAddr;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -27,7 +28,7 @@ impl Rule {
             .collect();
         return values
             .iter()
-            .any(|str| self.operator.to_operation()(str));
+            .any(|str| self.evaluate_operation(str));
     }
 }
 
@@ -49,7 +50,7 @@ fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> Vec<String>
         RuleVariable::FullRequest => unimplemented!("Not implemented yet!"),
         RuleVariable::FullRequestLength => unimplemented!("Not implemented yet!"),
         RuleVariable::FilesSizes => unimplemented!("Not implemented yet!"),
-        RuleVariable::FilesTmpnames => unimplemented!("Not implemented yet!"),
+        RuleVariable::FilesTempNames => unimplemented!("Not implemented yet!"),
         RuleVariable::FilesTmpContent => unimplemented!("Not implemented yet!"),
         RuleVariable::Geo => unimplemented!("Not implemented yet!"),
         RuleVariable::HighestSeverity => unimplemented!("Not implemented yet!"),
@@ -79,14 +80,16 @@ fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> Vec<String>
         RuleVariable::PerfSread => unimplemented!("Not implemented yet!"),
         RuleVariable::PerfSwrite => unimplemented!("Not implemented yet!"),
         RuleVariable::QueryString => unimplemented!("Not implemented yet!"),
-        RuleVariable::RemoteAddr => unimplemented!("Not implemented yet!"),
+        RuleVariable::RemoteAddr => vec![request.extensions().get::<SocketAddr>().unwrap()
+            .ip().to_string()],
         RuleVariable::RemoteHost => unimplemented!("Not implemented yet!"),
-        RuleVariable::RemotePort => unimplemented!("Not implemented yet!"),
+        RuleVariable::RemotePort => vec![request.extensions().get::<SocketAddr>().unwrap()
+            .port().to_string()],
         RuleVariable::RemoteUser => unimplemented!("Not implemented yet!"),
         RuleVariable::ReqbodyError => unimplemented!("Not implemented yet!"),
         RuleVariable::ReqbodyErrorMsg => unimplemented!("Not implemented yet!"),
         RuleVariable::ReqbodyProcessor => unimplemented!("Not implemented yet!"),
-        RuleVariable::RequestBasename => unimplemented!(), //Path::new(request.uri().path()).file_name(),
+        RuleVariable::RequestBasename => unimplemented!("Not implemented yet!"),
         RuleVariable::RequestBody => unimplemented!("Not implemented yet!"),
         RuleVariable::RequestBodyLength => unimplemented!("Not implemented yet!"),
         RuleVariable::RequestCookies => unimplemented!("Not implemented yet!"),

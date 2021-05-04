@@ -18,6 +18,7 @@ use crate::reverse_proxy::ReverseProxy;
 use crate::waf_settings::WafSettings;
 use crate::waf::WebApplicationFirewall;
 use crate::waf_running_mode::WafRunningMode;
+use hyper::server::conn::AddrStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -32,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let waf = WebApplicationFirewall {
         rules: vec![],
-        running_mode: WafRunningMode::DetectionOnly
+        running_mode: WafRunningMode::DetectionOnly,
     };
 
     let reverse_proxy = std::sync::Arc::new(ReverseProxy {
@@ -42,22 +43,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         web_application_firewall: waf,
     });
 
-    let address = SocketAddr::from(([0, 0, 0, 0], waf_settings.port));
 
-    let service = make_service_fn(move |_connection| {
+    let service = make_service_fn(move |socket: &AddrStream| {
+        let remote_addr = socket.remote_addr();
         let reverse_proxy_service_ref = reverse_proxy.clone();
-        async {
+        async move {
             return Ok::<_, Infallible>(service_fn(move |request| {
                 let reverse_proxy_request_ref = reverse_proxy_service_ref.clone();
                 async move {
-                    reverse_proxy_request_ref.handle_request(request).await
+                    reverse_proxy_request_ref.handle_request(remote_addr, request).await
                 }
             }));
         }
     });
 
-
-    let server = Server::bind(&address)
+    let server_listening_address = SocketAddr::from(([0, 0, 0, 0],
+                                                     waf_settings.port));
+    let server = Server::bind(&server_listening_address)
         .serve(service);
     server.await?;
     return Ok(());

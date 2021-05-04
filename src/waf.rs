@@ -3,6 +3,7 @@ use crate::waf_running_mode::WafRunningMode;
 use hyper::{Request, Body};
 use crate::waf_error::WafError;
 use crate::waf_running_mode::WafRunningMode::{Off, On};
+use std::net::SocketAddr;
 
 pub struct WebApplicationFirewall {
     pub(crate) rules: Vec<Rule>,
@@ -63,4 +64,36 @@ fn should_apply_xss_detection_from_rule() {
         .unwrap();
 
     assert!(rule.matches(&xss_request));
+}
+
+#[test]
+fn should_match_ip() {
+    let rule = parse_rule(r###"SecRule REMOTE_ADDR "@ipMatch 192.168.1.101" "id:35""###)
+        .unwrap().1;
+    let mut request = Request::builder()
+        .method("POST")
+        .uri("http://example.com")
+        .body(Body::empty())
+        .unwrap();
+
+    request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 10000)));
+    assert!(rule.matches(&request));
+
+    request.extensions_mut().insert(SocketAddr::from(([10, 0, 0, 1], 10000)));
+    assert!(!rule.matches(&request));
+}
+
+#[test]
+fn should_match_port() {
+    let rule = parse_rule(r###"SecRule REMOTE_PORT "@lt 1024" "id:37""###)
+        .unwrap().1;
+
+    let mut request = Request::builder()
+        .method("POST")
+        .uri("http://example.com")
+        .body(Body::empty())
+        .unwrap();
+
+    request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 1000)));
+    assert!(rule.matches(&request));
 }

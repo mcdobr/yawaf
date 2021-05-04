@@ -26,7 +26,7 @@ pub enum RuleVariable {
     FullRequest,
     FullRequestLength,
     FilesSizes,
-    FilesTmpnames,
+    FilesTempNames,
     FilesTmpContent,
     Geo,
     HighestSeverity,
@@ -56,8 +56,20 @@ pub enum RuleVariable {
     PerfSread,
     PerfSwrite,
     QueryString,
+    /// This variable holds the IP address of the remote client.
     RemoteAddr,
+    /// If hostname lookup is set to On, then this variable will hold
+    /// the remote hostname resolved through DNS. If the directive is set to Off, this variable
+    /// it will hold the remote IP address same as REMOTE_ADDR). Possible uses for this
+    /// variable would be to deny known bad client hosts or network blocks,
+    /// or conversely, to allow in authorized hosts.
     RemoteHost,
+    /// This variable holds information on the source port that the client used when initiating the connection to our web server.
+    ///
+    /// E.g:  we are evaluating to see whether the REMOTE_PORT is less than 1024, which would
+    /// indicate that the user is a privileged user:
+    ///
+    /// SecRule REMOTE_PORT "@lt 1024" "id:37"
     RemotePort,
     RemoteUser,
     ReqbodyError,
@@ -142,7 +154,7 @@ impl std::convert::From<&str> for RuleVariable {
             "FULL_REQUEST" => RuleVariable::FullRequest,
             "FULL_REQUEST_LENGTH" => RuleVariable::FullRequestLength,
             "FILES_SIZES" => RuleVariable::FilesSizes,
-            "FILES_TMPNAMES" => RuleVariable::FilesTmpnames,
+            "FILES_TMPNAMES" => RuleVariable::FilesTempNames,
             "FILES_TMP_CONTENT" => RuleVariable::FilesTmpContent,
             "GEO" => RuleVariable::Geo,
             "HIGHEST_SEVERITY" => RuleVariable::HighestSeverity,
