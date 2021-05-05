@@ -6,6 +6,9 @@ use nom::character::complete::{alpha1, space0};
 use nom::combinator::opt;
 use libinjection::{sqli, xss};
 use std::convert::identity;
+use crate::rules_parser::rule::Rule;
+use std::net::IpAddr;
+use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuleOperator {
@@ -23,24 +26,26 @@ pub enum RuleOperatorType {
     DetectXSS,
     EndsWith,
     FuzzyHash,
-    Eq,
-    Ge,
+    /// Performs numerical comparison and returns true if the input value is equal to the
+    /// provided parameter. Macro expansion is performed on the parameter string before comparison.
+    /// If a value is provided that cannot be converted to an integer (i.e a string)
+    /// this operator will treat that value as 0.
+    Equals,
+    GreaterOrEqual,
     GeoLookup,
     GsbLookup,
-    Gt,
+    GreaterThan,
     InspectFile,
     IpMatch,
-    IpMatchF,
     IpMatchFromFile,
-    Le,
-    Lt,
+    LessOrEqual,
+    LessThan,
     NoMatch,
     Pm,
-    Pmf,
     PmFromFile,
     Rbl,
     Rsub,
-    Rx,
+    Regex,
     StrEq,
     StrMatch,
     UnconditionalMatch,
@@ -66,24 +71,23 @@ impl std::convert::From<&str> for RuleOperatorType {
             "detectXSS" => RuleOperatorType::DetectXSS,
             "endsWith" => RuleOperatorType::EndsWith,
             "fuzzyHash" => RuleOperatorType::FuzzyHash,
-            "eq" => RuleOperatorType::Eq,
-            "ge" => RuleOperatorType::Ge,
+            "eq" => RuleOperatorType::Equals,
+            "ge" => RuleOperatorType::GreaterOrEqual,
             "geoLookup" => RuleOperatorType::GeoLookup,
             "gsbLookup" => RuleOperatorType::GsbLookup,
-            "gt" => RuleOperatorType::Gt,
+            "gt" => RuleOperatorType::GreaterThan,
             "inspectFile" => RuleOperatorType::InspectFile,
             "ipMatch" => RuleOperatorType::IpMatch,
-            "ipMatchF" => RuleOperatorType::IpMatchF,
+            "ipMatchF" => RuleOperatorType::IpMatchFromFile,
             "ipMatchFromFile" => RuleOperatorType::IpMatchFromFile,
-            "le" => RuleOperatorType::Le,
-            "lt" => RuleOperatorType::Lt,
+            "le" => RuleOperatorType::LessOrEqual,
+            "lt" => RuleOperatorType::LessThan,
             "noMatch" => RuleOperatorType::NoMatch,
             "pm" => RuleOperatorType::Pm,
-            "pmf" => RuleOperatorType::Pmf,
             "pmFromFile" => RuleOperatorType::PmFromFile,
             "rbl" => RuleOperatorType::Rbl,
             "rsub" => RuleOperatorType::Rsub,
-            "rx" => RuleOperatorType::Rx,
+            "rx" => RuleOperatorType::Regex,
             "streq" => RuleOperatorType::StrEq,
             "strmatch" => RuleOperatorType::StrMatch,
             "unconditionalMatch" => RuleOperatorType::UnconditionalMatch,
@@ -128,37 +132,36 @@ pub fn parse_operator(input: &str) -> IResult<&str, RuleOperator> {
     })
 }
 
-impl RuleOperator {
-    pub fn to_operation(&self) -> fn(&str) -> bool {
-        let operation = match self.operator_type {
-            RuleOperatorType::BeginsWith => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Contains => unimplemented!("Not implemented yet!"),
+impl Rule {
+    pub fn evaluate_operation(&self, input: &str) -> bool {
+        let pattern = self.operator.argument.as_str();
+        let operation_result = match self.operator.operator_type {
+            RuleOperatorType::BeginsWith => begins_with(input, pattern),
+            RuleOperatorType::Contains => contains(input, pattern),
             RuleOperatorType::ContainsWord => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::DetectSQLi => detect_sqli,
-            RuleOperatorType::DetectXSS => detect_xss,
-            RuleOperatorType::EndsWith => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::DetectSQLi => detect_sqli(input),
+            RuleOperatorType::DetectXSS => detect_xss(input),
+            RuleOperatorType::EndsWith => ends_with(input, pattern),
             RuleOperatorType::FuzzyHash => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Eq => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Ge => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Equals => equals(input, pattern),
+            RuleOperatorType::GreaterOrEqual => greater_or_equal(input, pattern),
             RuleOperatorType::GeoLookup => unimplemented!("Not implemented yet!"),
             RuleOperatorType::GsbLookup => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Gt => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::GreaterThan => greater_than(input, pattern),
             RuleOperatorType::InspectFile => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::IpMatch => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::IpMatchF => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::IpMatch => ip_match(input, pattern),
             RuleOperatorType::IpMatchFromFile => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Le => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Lt => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::NoMatch => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::LessOrEqual => less_or_equal(input, pattern),
+            RuleOperatorType::LessThan => less_than(input, pattern),
+            RuleOperatorType::NoMatch => no_match(),
             RuleOperatorType::Pm => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Pmf => unimplemented!("Not implemented yet!"),
             RuleOperatorType::PmFromFile => unimplemented!("Not implemented yet!"),
             RuleOperatorType::Rbl => unimplemented!("Not implemented yet!"),
             RuleOperatorType::Rsub => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Rx => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::StrEq => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::StrMatch => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::UnconditionalMatch => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Regex => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::StrEq => str_eq(input, pattern),
+            RuleOperatorType::StrMatch => str_match(input, pattern),
+            RuleOperatorType::UnconditionalMatch => unconditional_match(),
             RuleOperatorType::ValidateByteRange => unimplemented!("Not implemented yet!"),
             RuleOperatorType::ValidateDTD => unimplemented!("Not implemented yet!"),
             RuleOperatorType::ValidateHash => unimplemented!("Not implemented yet!"),
@@ -170,7 +173,11 @@ impl RuleOperator {
             RuleOperatorType::VerifySSN => unimplemented!("Not implemented yet!"),
             RuleOperatorType::Within => unimplemented!("Not implemented yet!"),
         };
-        return operation;
+        return if self.operator.negated {
+            !operation_result
+        } else {
+            operation_result
+        };
     }
 }
 
@@ -183,6 +190,72 @@ fn detect_sqli(input: &str) -> bool {
 fn detect_xss(input: &str) -> bool {
     let is_xss = xss(input).unwrap_or(false);
     return is_xss;
+}
+
+fn begins_with(input: &str, pattern: &str) -> bool {
+    return input.starts_with(pattern);
+}
+
+fn contains(input: &str, pattern: &str) -> bool {
+    return input.contains(pattern);
+}
+
+fn ends_with(input: &str, pattern: &str) -> bool {
+    return input.ends_with(pattern);
+}
+
+fn equals(input: &str, pattern: &str) -> bool {
+    let (input_numeric, pattern_numeric) = parse_numeric(input, pattern);
+    return input_numeric == pattern_numeric;
+}
+
+fn greater_or_equal(input: &str, pattern: &str) -> bool {
+    let (input_numeric, pattern_numeric) = parse_numeric(input, pattern);
+    return input_numeric >= pattern_numeric;
+}
+
+fn greater_than(input: &str, pattern: &str) -> bool {
+    let (input_numeric, pattern_numeric) = parse_numeric(input, pattern);
+    return input_numeric > pattern_numeric;
+}
+
+fn ip_match(input: &str, pattern: &str) -> bool {
+    let remote_ip_addr = IpAddr::from_str(input).unwrap();
+    let pattern_ip_addr = IpAddr::from_str(pattern).unwrap();
+    return remote_ip_addr == pattern_ip_addr;
+}
+
+fn less_or_equal(input: &str, pattern: &str) -> bool {
+    let (input_numeric, pattern_numeric) = parse_numeric(input, pattern);
+    return input_numeric < pattern_numeric;
+}
+
+fn less_than(input: &str, pattern: &str) -> bool {
+    let (input_numeric, pattern_numeric) = parse_numeric(input, pattern);
+    return input_numeric < pattern_numeric;
+}
+
+fn no_match() -> bool {
+    return false;
+}
+
+fn str_eq(input: &str, pattern: &str) -> bool {
+    return input == pattern;
+}
+
+/// TODO: need to check complexity of Rust stdlib implementation, will be fine for now
+fn str_match(input: &str, pattern: &str) -> bool {
+    return input.contains(pattern);
+}
+
+fn unconditional_match() -> bool {
+    return true;
+}
+
+fn parse_numeric(input: &str, pattern: &str) -> (i32, i32) {
+    let input_numeric = input.parse::<i32>().unwrap_or(0);
+    let pattern_numeric = pattern.parse::<i32>().unwrap();
+    (input_numeric, pattern_numeric)
 }
 
 #[test]
