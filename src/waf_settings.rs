@@ -7,6 +7,7 @@ pub struct WafSettings {
     pub authority: String,
     pub port: u16,
     pub upstream: String,
+    pub rules: String,
     // running_mode: WafRunningMode,
 }
 

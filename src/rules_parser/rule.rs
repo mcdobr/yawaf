@@ -1,17 +1,19 @@
 use hyper::{Body, Request};
 use nom::error::context;
 use nom::IResult;
-use nom::sequence::tuple;
-use nom::character::complete::{multispace1};
+use nom::sequence::{tuple, delimited};
+use nom::character::complete::{multispace1, multispace0};
 use crate::rules_parser::rule_directive::RuleDirective;
 use crate::rules_parser::rule_variable::{RuleVariableType, RuleVariable};
 use crate::rules_parser::{rule_directive, rule_variable, rule_operator, rule_action};
 use crate::rules_parser::rule_operator::{RuleOperator, RuleOperatorType};
 use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
 use hyper::http::uri::PathAndQuery;
+use crate::rules_parser::rule_variable::RuleVariableType::RemoteAddr;
 use std::net::SocketAddr;
 use hyper::header::COOKIE;
 
+/// todo: is order of variables and actions relevant or should it be set instead of vec?
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
     pub directive: RuleDirective,
@@ -165,22 +167,40 @@ fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> Vec<String>
     };
 }
 
+pub fn parse_rules(input: &str) -> Vec<Rule> {
+    let input_with_removed_newlines = input.replace("\\\n", " ");
+    let mut str = input_with_removed_newlines.as_str();
+    let mut rules: Vec<Rule> = Vec::new();
+    while !str.is_empty() {
+        let parsing_result = parse_rule(str);
+        let (next_str, rule) = parsing_result.unwrap();
+
+        rules.push(rule);
+        str = next_str;
+    }
+    return rules;
+}
 
 pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
     context(
         "rule",
-        tuple((
-            rule_directive::parse_directive,
-            multispace1,
-            rule_variable::parse_variables,
-            multispace1,
-            rule_operator::parse_operator,
-            multispace1,
-            rule_action::parse_actions,
-        )),
+        delimited(
+            multispace0,
+            tuple((
+                rule_directive::parse_directive,
+                multispace1,
+                rule_variable::parse_variables,
+                multispace1,
+                rule_operator::parse_operator,
+                multispace1,
+                rule_action::parse_actions,
+            )),
+            multispace0,
+        ),
     )(input)
         .map(|(next_input, result)| {
-            let (directive,
+            let (
+                directive,
                 _,
                 variables,
                 _,
@@ -201,6 +221,100 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
 }
 
 #[test]
+fn parse_rules_should_parse_multiple_rules_completely() {
+    let rules = parse_rules(r###"
+    SecRule REMOTE_ADDR "@ipMatch 192.168.1.101" \
+        "id:102,phase:1,t:none,nolog,pass,ctl:ruleEngine=off"
+
+    SecRule REQUEST_URI "@beginsWith /index.php/component/users/" \
+        "id:5,phase:1,t:none,pass,nolog,ctl:ruleRemoveTargetById=981318"
+"###);
+
+    assert_eq!(vec![
+        Rule {
+            directive: RuleDirective::SecRule,
+            variables: vec![
+                RuleVariable {
+                    count: false,
+                    variable_type: RuleVariableType::RemoteAddr,
+                }
+            ],
+            operator: RuleOperator {
+                negated: false,
+                operator_type: RuleOperatorType::IpMatch,
+                argument: "192.168.1.101".to_string(),
+            },
+            transformations: "".to_string(),
+            actions: vec![
+                RuleAction {
+                    action_type: RuleActionType::Id,
+                    argument: Some("102".to_string()),
+                },
+                RuleAction {
+                    action_type: RuleActionType::Phase,
+                    argument: Some("1".to_string()),
+                },
+                RuleAction {
+                    action_type: RuleActionType::T,
+                    argument: Some("none".to_string()),
+                },
+                RuleAction {
+                    action_type: RuleActionType::Nolog,
+                    argument: None,
+                },
+                RuleAction {
+                    action_type: RuleActionType::Pass,
+                    argument: None,
+                },
+                RuleAction {
+                    action_type: RuleActionType::Ctl,
+                    argument: Some("ruleEngine=off".to_string()),
+                },
+            ],
+        },
+        Rule {
+            directive: RuleDirective::SecRule,
+            variables: vec![RuleVariable {
+                count: false,
+                variable_type: RuleVariableType::RequestUri,
+            }],
+            operator: RuleOperator {
+                negated: false,
+                operator_type: RuleOperatorType::BeginsWith,
+                argument: "/index.php/component/users/".to_string(),
+            },
+            transformations: "".to_string(),
+            actions: vec![
+                RuleAction {
+                    action_type: RuleActionType::Id,
+                    argument: Some("5".to_string()),
+                },
+                RuleAction {
+                    action_type: RuleActionType::Phase,
+                    argument: Some("1".to_string()),
+                },
+                RuleAction {
+                    action_type: RuleActionType::T,
+                    argument: Some("none".to_string()),
+                },
+                RuleAction {
+                    action_type: RuleActionType::Pass,
+                    argument: None,
+                },
+                RuleAction {
+                    action_type: RuleActionType::Nolog,
+                    argument: None,
+                },
+                RuleAction {
+                    action_type: RuleActionType::Ctl,
+                    argument: Some("ruleRemoveTargetById=981318".to_string()),
+                },
+            ],
+        }
+    ], rules);
+}
+
+#[test]
 fn extract_variables_should_extract_headers() {
     let request = Request::builder()
         .method("POST")
@@ -212,7 +326,7 @@ fn extract_variables_should_extract_headers() {
         directive: RuleDirective::SecRule,
         variables: vec![RuleVariable {
             count: false,
-            variable_type: RuleVariableType::RequestHeaders
+            variable_type: RuleVariableType::RequestHeaders,
         }],
         operator: RuleOperator {
             negated: false,
@@ -246,7 +360,7 @@ fn parse_rule_should_extract_basic_elements() {
                    directive: RuleDirective::SecRule,
                    variables: vec![RuleVariable {
                        count: false,
-                       variable_type: RuleVariableType::RequestFilename
+                       variable_type: RuleVariableType::RequestFilename,
                    }],
                    operator: RuleOperator {
                        negated: false,
