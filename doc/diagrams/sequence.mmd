@@ -1,0 +1,16 @@
+sequenceDiagram
+    User->>+Client: Interact with page
+    Client->>Client: Figure out action
+    Client->>+WAF: Request resource
+    deactivate Client
+    WAF->>WAF: Inspect request
+    WAF->>+Web Server: Forward request
+    deactivate WAF
+    Web Server->>Web Server: Process request
+    Web Server->>+WAF: Send response
+    deactivate Web Server
+    WAF->>WAF: Inspect response
+    WAF->>+Client: Forward response
+    deactivate WAF
+    Client->>User: Render page
+    deactivate Client
