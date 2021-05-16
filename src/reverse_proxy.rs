@@ -3,6 +3,7 @@ use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
 use crate::waf_error::WafError;
 use crate::waf::WebApplicationFirewall;
+use std::net::SocketAddr;
 
 pub(crate) struct ReverseProxy {
     pub(crate) scheme: String,
@@ -12,18 +13,22 @@ pub(crate) struct ReverseProxy {
 }
 
 impl ReverseProxy {
-    pub(crate) async fn handle_request(&self, mut request: Request<Body>)
+    pub(crate) async fn handle_request(&self,
+                                       remote_addr: SocketAddr,
+                                       mut request: Request<Body>)
                                        -> Result<Response<Body>, WafError>
     {
+        request.extensions_mut().insert(remote_addr);
         // Rewrite the request to pass it forward to upstream servers
         *request.headers_mut() = self.whitelist_headers(&request);
         *request.uri_mut() = self.rewrite_uri(&request);
 
         self.web_application_firewall.inspect_request(&request);
 
-        log::debug!("Request == {:?}", request);
+        // log::debug!("{:?}", request.extensions().get::<SocketAddr>());
+        log::debug!("Request == {:?} from {:?}", request, remote_addr);
         let response = self.client.request(request).await.unwrap();
-        // log::debug!("Response == {:?}", response);
+        log::debug!("Response == {:?}", response);
         return Ok(response);
     }
 
