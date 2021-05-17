@@ -54,13 +54,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let rules = raw_rule_file_contents.into_iter()
         .map(|file_content| parse_rules(file_content.as_str()))
         .collect::<Vec<Vec<Rule>>>();
-    log::debug!("{:?}", rules);
+    log::debug!("Loaded rules from configuration files: {:?}", rules);
 
     let http_connector = HttpConnector::new();
     let http_client = Client::builder().build(http_connector);
 
     let waf = WebApplicationFirewall {
-        rules: vec![],
+        rules: rules.concat(),
         running_mode: WafRunningMode::DetectionOnly,
     };
 
