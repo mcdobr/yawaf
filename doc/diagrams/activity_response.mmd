@@ -1,0 +1,12 @@
+graph TD
+    A[Receive HTTP Response from upstream] --> |Inspect| B{Containssensitive data}
+
+    subgraph DetectionEngine
+    B --> |Yes|C[Log response]
+    C --> F{Running mode}
+    F --> |Blocking| G[Block response]
+    end DetectionEngine
+
+    B --> |No|D[No]
+    F --> |Log only| D[Modify response]
+    D --> I[Pass response to end-user]
