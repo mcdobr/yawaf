@@ -13,23 +13,37 @@ pub(crate) struct ReverseProxy {
 }
 
 impl ReverseProxy {
-    pub(crate) async fn handle_request(&self,
-                                       remote_addr: SocketAddr,
-                                       mut request: Request<Body>)
-                                       -> Result<Response<Body>, WafError>
+    pub async fn handle_request(&self,
+                                remote_addr: SocketAddr,
+                                mut request: Request<Body>)
+                                -> Result<Response<Body>, WafError>
     {
         request.extensions_mut().insert(remote_addr);
         // Rewrite the request to pass it forward to upstream servers
         *request.headers_mut() = self.whitelist_headers(&request);
         *request.uri_mut() = self.rewrite_uri(&request);
 
-        self.web_application_firewall.inspect_request(&request);
-
-        // log::debug!("{:?}", request.extensions().get::<SocketAddr>());
         log::debug!("Request == {:?} from {:?}", request, remote_addr);
-        let response = self.client.request(request).await.unwrap();
-        log::debug!("Response == {:?}", response);
-        return Ok(response);
+        let normalized_request_result = self.web_application_firewall
+            .normalize_request(request)
+            .and_then(|normalized_req| {
+                log::debug!("Normalized request {:?}", normalized_req);
+                Ok(normalized_req)
+            });
+
+        let received_response_result = match normalized_request_result {
+            Ok(normalized_request) => self.client.request(normalized_request)
+                .await
+                .map_err(|error| WafError::new("Unreachable upstream")),
+            Err(error) => Err(error),
+        };
+
+        return received_response_result
+            .and_then(|response| {
+                log::debug!("Received response == {:?}", response);
+                Ok(response)
+            })
+            .and_then(|mut response| self.web_application_firewall.normalize_response(response));
     }
 
     fn rewrite_uri(&self, request: &Request<Body>) -> Uri {

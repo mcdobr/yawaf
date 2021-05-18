@@ -24,7 +24,11 @@ pub struct Rule {
 }
 
 impl Rule {
-    pub(crate) fn matches(&self, request: &Request<Body>) -> bool {
+    pub fn normalize(&self, request: Request<Body>) -> Request<Body> {
+        return request;
+    }
+
+    pub fn matches(&self, request: &Request<Body>) -> bool {
         let values: Vec<String> = self.variables.clone()
             .into_iter()
             .flat_map(|var| {

@@ -1,8 +1,8 @@
 use crate::rules_parser::rule::{parse_rule, Rule};
 use crate::waf_running_mode::WafRunningMode;
-use hyper::{Request, Body};
+use hyper::{Request, Body, Response};
 use crate::waf_error::WafError;
-use crate::waf_running_mode::WafRunningMode::{Off, On};
+use crate::waf_running_mode::WafRunningMode::{Off, On, DetectionOnly};
 use std::net::SocketAddr;
 use crate::rules_parser::rule_variable::RuleVariableType::RequestHeaders;
 use hyper::header::COOKIE;
@@ -13,26 +13,31 @@ pub struct WebApplicationFirewall {
 }
 
 impl WebApplicationFirewall {
-    pub fn inspect_request(&self, request: &Request<Body>)
-                           -> Option<WafError> {
+    pub fn normalize_request(&self, mut request: Request<Body>)
+                             -> Result<Request<Body>, WafError> {
         if self.running_mode != Off {
             let matched_rules: Vec<Rule> = self.rules.iter()
                 .filter(|rule| {
-                    return rule.matches(request);
+                    // rule.normalize(request);
+                    return rule.matches(&request);
                 })
                 .cloned()
                 .collect();
 
             if !matched_rules.is_empty() {
                 log::warn!("Request {:?} matches: {:?}", request, matched_rules);
-
                 if self.running_mode == On {
                     log::warn!("Blocking request {:?}", request);
-                    return Some(WafError::new("Blocked request"));
+                    return Err(WafError::new("Blocked request"));
                 }
             }
         }
-        return None;
+        return Ok(request);
+    }
+
+    pub fn normalize_response(&self, mut response: Response<Body>) -> Result<Response<Body>, WafError> {
+        // todo: implement inspect logic for response
+        return Ok(response);
     }
 }
 
