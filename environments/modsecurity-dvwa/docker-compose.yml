@@ -1,0 +1,13 @@
+version: "3.0"
+services:
+  dvwa:
+    image: vulnerables/web-dvwa
+    ports:
+      - "8000:80"
+  modsecurity:
+    image: owasp/modsecurity:3.0
+    ports:
+      - "9000:80"
+    environment:
+      - BACKEND=http://dvwa
+      - LOGLEVEL=debug
