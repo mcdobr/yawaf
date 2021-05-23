@@ -9,8 +9,8 @@ services:
     ports:
       - "80:80"
     environment:
-      - YAWAF_HOST = localhost
+      - YAWAF_HOST=localhost
       - YAWAF_UPSTREAM=http://dvwa
-      - YAWAF_PORT = 80
+      - YAWAF_PORT=80
     links:
       - dvwa
