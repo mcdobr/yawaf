@@ -60,7 +60,7 @@ impl ReverseProxy {
 
     fn whitelist_headers(&self, request: &Request<Body>) -> HeaderMap<HeaderValue> {
         // Remove headers not whitelisted
-        const ALLOWED_HEADERS: [&str; 7] = [
+        const ALLOWED_HEADERS: [&str; 6] = [
             // "host",
             "content-type",
             "accept",
@@ -68,7 +68,6 @@ impl ReverseProxy {
             "dnt",
             "x-forwarded-for",
             "x-real-ip",
-            "abcd",
         ];
 
         let mut filtered_headers = HeaderMap::new();
@@ -79,6 +78,9 @@ impl ReverseProxy {
         }
 
         // todo: add x-forwarded-for and x-real-ip logic
+        let user_ip = request.extensions().get::<SocketAddr>().unwrap().ip();
+        filtered_headers.insert("X-Forwarded-For", (user_ip.to_string() + ", 127.0.0.1").parse().unwrap());
+        filtered_headers.insert("X-Real-IP", user_ip.to_string().parse().unwrap());
         return filtered_headers;
     }
 }
