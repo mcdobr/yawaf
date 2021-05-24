@@ -24,14 +24,15 @@ impl ReverseProxy {
         *request.uri_mut() = self.rewrite_uri(&request);
 
         log::debug!("Request == {:?} from {:?}", request, remote_addr);
-        let normalized_request_result = self.web_application_firewall
+        let inspected_request_result = self.web_application_firewall
             .inspect_request(request)
+            .await
             .and_then(|normalized_req| {
                 log::debug!("Normalized request {:?}", normalized_req);
                 Ok(normalized_req)
             });
 
-        let received_response_result = match normalized_request_result {
+        let received_response_result = match inspected_request_result {
             Ok(normalized_request) => self.client.request(normalized_request)
                 .await
                 .map_err(|error| WafError::new("Unreachable upstream")),
