@@ -25,7 +25,7 @@ impl ReverseProxy {
 
         log::debug!("Request == {:?} from {:?}", request, remote_addr);
         let normalized_request_result = self.web_application_firewall
-            .normalize_request(request)
+            .inspect_request(request)
             .and_then(|normalized_req| {
                 log::debug!("Normalized request {:?}", normalized_req);
                 Ok(normalized_req)
@@ -43,7 +43,7 @@ impl ReverseProxy {
                 log::debug!("Received response == {:?}", response);
                 Ok(response)
             })
-            .and_then(|mut response| self.web_application_firewall.normalize_response(response));
+            .and_then(|mut response| self.web_application_firewall.inspect_response(response));
     }
 
     fn rewrite_uri(&self, request: &Request<Body>) -> Uri {

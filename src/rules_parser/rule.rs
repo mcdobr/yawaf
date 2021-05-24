@@ -12,6 +12,10 @@ use hyper::http::uri::PathAndQuery;
 use crate::rules_parser::rule_variable::RuleVariableType::RemoteAddr;
 use std::net::SocketAddr;
 use hyper::header::COOKIE;
+use futures::Stream;
+use hyper::body::Bytes;
+use std::str::from_utf8;
+use bytes::BytesMut;
 
 /// todo: is order of variables and actions relevant or should it be set instead of vec?
 #[derive(Clone, Debug, PartialEq)]
@@ -24,10 +28,6 @@ pub struct Rule {
 }
 
 impl Rule {
-    pub fn normalize(&self, request: Request<Body>) -> Request<Body> {
-        return request;
-    }
-
     pub fn matches(&self, request: &Request<Body>) -> bool {
         let values: Vec<String> = self.variables.clone()
             .into_iter()

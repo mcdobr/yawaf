@@ -13,12 +13,11 @@ pub struct WebApplicationFirewall {
 }
 
 impl WebApplicationFirewall {
-    pub fn normalize_request(&self, mut request: Request<Body>)
-                             -> Result<Request<Body>, WafError> {
+    pub fn inspect_request(&self, mut request: Request<Body>)
+                           -> Result<Request<Body>, WafError> {
         if self.running_mode != Off {
             let matched_rules: Vec<Rule> = self.rules.iter()
                 .filter(|rule| {
-                    // rule.normalize(request);
                     return rule.matches(&request);
                 })
                 .cloned()
@@ -35,7 +34,7 @@ impl WebApplicationFirewall {
         return Ok(request);
     }
 
-    pub fn normalize_response(&self, mut response: Response<Body>) -> Result<Response<Body>, WafError> {
+    pub fn inspect_response(&self, mut response: Response<Body>) -> Result<Response<Body>, WafError> {
         // todo: implement inspect logic for response
         return Ok(response);
     }
