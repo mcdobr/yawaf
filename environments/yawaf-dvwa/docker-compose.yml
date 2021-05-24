@@ -7,7 +7,7 @@ services:
   yawaf:
     image: mcdobr/yawaf
     ports:
-      - "80:80"
+      - "9000:80"
     environment:
       - YAWAF_HOST=localhost
       - YAWAF_UPSTREAM=http://dvwa
