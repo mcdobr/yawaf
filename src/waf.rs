@@ -18,40 +18,38 @@ pub struct WebApplicationFirewall {
 
 impl WebApplicationFirewall {
     pub async fn inspect_request(&self, request: Request<Body>)
-                           -> Result<Request<Body>, WafError> {
-        let (parts, body) = request.into_parts();
+                                 -> Result<Request<Body>, WafError> {
+        // let (parts, body) = request.into_parts();
 
-        return hyper::body::to_bytes(body)
+        // return hyper::body::to_bytes(body)
+        //     .await
+        // .and_then(|bytes| self.apply_rules(request))
+        return self.apply_rules(request)
             .await
-            // .and_then(|bytes| self.apply_rules(&parts, bytes))
-            .and_then(|bytes| Ok(Request::from_parts(parts, Body::from(bytes))))
+            // .and_then(|bytes| Ok(Request::from_parts(parts, Body::from(bytes))))
             .map_err(|err| WafError::new("Could not handle HTTP request"));
-
-
-        let request = Request::from_parts(parts, body);
-
-        return Ok(request);
     }
 
-    // fn apply_rules(&self, parts: &Parts, body_bytes: Bytes) -> Result<Bytes, dyn Error>{
-    //     if self.running_mode != Off {
-    //         let matched_rules: Vec<Rule> = self.rules.iter()
-    //             .filter(|rule| {
-    //                 return rule.matches(&request);
-    //             })
-    //             .cloned()
-    //             .collect();
-    //
-    //         if !matched_rules.is_empty() {
-    //             log::warn!("Request {:?} matches: {:?}", request, matched_rules);
-    //             if self.running_mode == On {
-    //                 log::warn!("Blocking request {:?}", request);
-    //                 return Err(WafError::new("Blocked request"));
-    //             }
-    //         }
-    //     }
-    //     Ok(bytes)
-    // }
+    async fn apply_rules(&self, request: Request<Body>) -> Result<Request<Body>, WafError> {
+        if self.running_mode != Off {
+            let matched_rules: Vec<Rule> = self.rules.iter()
+                .filter(|rule| {
+                    return rule.matches(&request);
+                })
+                .cloned()
+                .collect();
+
+            if !matched_rules.is_empty() {
+                log::warn!("Request {:?} matches: {:?}", request, matched_rules);
+                if self.running_mode == On {
+                    log::warn!("Blocking request {:?}", request);
+                    return Err(WafError::new("Blocked request"));
+                }
+            }
+        }
+        // Ok(bytes)
+        Ok(request)
+    }
 
     pub fn inspect_response(&self, mut response: Response<Body>) -> Result<Response<Body>, WafError> {
         // todo: implement inspect logic for response

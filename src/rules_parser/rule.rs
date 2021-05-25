@@ -16,6 +16,7 @@ use futures::Stream;
 use hyper::body::Bytes;
 use std::str::from_utf8;
 use bytes::BytesMut;
+use crate::rules_parser::rule_action::RuleActionType::T;
 
 /// todo: is order of variables and actions relevant or should it be set instead of vec?
 #[derive(Clone, Debug, PartialEq)]
@@ -23,13 +24,17 @@ pub struct Rule {
     pub directive: RuleDirective,
     pub variables: Vec<RuleVariable>,
     pub operator: RuleOperator,
-    pub transformations: String,
     pub actions: Vec<RuleAction>,
 }
 
 impl Rule {
     pub fn matches(&self, request: &Request<Body>) -> bool {
-        let values: Vec<String> = self.variables.clone()
+        let transformation_actions = self.actions.clone()
+            .into_iter()
+            .filter(|action| action.action_type == RuleActionType::T)
+            .collect::<Vec<RuleAction>>();
+
+        let mut values: Vec<String> = self.variables.clone()
             .into_iter()
             .flat_map(|var| {
                 let extracted_values = extract_from(request, &var);
@@ -41,6 +46,20 @@ impl Rule {
                 }
             })
             .collect();
+
+        // apply all transformations to all extracted values
+        if !transformation_actions.is_empty() {
+            for value in values.iter_mut() {
+                *value = value.to_lowercase();
+                // match transformation_actions[0].argument.unwrap_or(String::from("none")).as_ref() {
+                //     "base64Decode" => value,
+                //     // "urlDecode" => *value = serde_urlencoded::from_str::<String>(value).unwrap(),
+                //     "lowercase" => value.to_lowercase(),
+                //     _ => value,
+                // }
+            }
+        }
+
         return values
             .iter()
             .any(|str| self.evaluate_operation(str));
@@ -217,7 +236,6 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
                         directive,
                         variables,
                         operator,
-                        transformations: "".to_string(),
                         actions,
                     }
             );

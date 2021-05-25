@@ -61,7 +61,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let waf = WebApplicationFirewall {
         rules: rules.concat(),
-        running_mode: WafRunningMode::DetectionOnly,
+        // running_mode: WafRunningMode::DetectionOnly,
+        running_mode: WafRunningMode::On,
     };
 
     let reverse_proxy = std::sync::Arc::new(ReverseProxy {

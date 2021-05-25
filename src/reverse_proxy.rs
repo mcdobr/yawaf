@@ -1,6 +1,7 @@
 use hyper::{Client, Request, Body, Response, HeaderMap, Uri};
 use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
+use hyper::http::StatusCode;
 use crate::waf_error::WafError;
 use crate::waf::WebApplicationFirewall;
 use std::net::SocketAddr;
@@ -32,10 +33,18 @@ impl ReverseProxy {
                 Ok(normalized_req)
             });
 
+        if inspected_request_result.is_err() {
+            let blocked_response = Response::builder()
+                .status(StatusCode::FORBIDDEN)
+                .body(Body::from("Shoo! Go away!"))
+                .unwrap();
+            return Ok(blocked_response);
+        }
+
         let received_response_result = match inspected_request_result {
             Ok(normalized_request) => self.client.request(normalized_request)
                 .await
-                .map_err(|error| WafError::new("Unreachable upstream")),
+                .map_err(|error| WafError::new("Unreachable origin")),
             Err(error) => Err(error),
         };
 
