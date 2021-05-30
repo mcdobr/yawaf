@@ -1,8 +1,8 @@
 graph TD
-    A[Receive HTTP Request from end-user] --> |Forward| B{Find upstream}
+    A[Receive HTTP Request from end-user] --> |Forward| B{Find origin}
     subgraph ReverseProxy
     B -->C[Modify request]
-    B -->|Upstream not found| D[Send error response]
+    B -->|Origin not found| D[Send error response]
     end ReverseProxy
     subgraph DetectionEngine
     C --> |Inspect|E{Is malicious?}
@@ -10,5 +10,5 @@ graph TD
     F --> H{Running mode}
     H --> |Blocking| I[Block request]
     H --> |Log only| G
-    E --> |No| G[Forward request to upstream]
+    E --> |No| G[Forward request to origin]
     end DetectionEngine

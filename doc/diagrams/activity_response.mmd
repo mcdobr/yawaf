@@ -1,5 +1,5 @@
 graph TD
-    A[Receive HTTP Response from upstream] --> |Inspect| B{Containssensitive data}
+    A[Receive HTTP Response from origin] --> |Inspect| B{Contains sensitive data}
 
     subgraph DetectionEngine
     B --> |Yes|C[Log response]
