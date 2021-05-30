@@ -29,8 +29,6 @@ pub struct Rule {
 
 impl Rule {
     pub fn matches(&self, request: &Request<Body>) -> bool {
-        let transformation_actions = self.transformations();
-
         let mut values: Vec<String> = self.variables.clone()
             .into_iter()
             .flat_map(|var| {
@@ -45,6 +43,15 @@ impl Rule {
             .collect();
 
         // apply all transformations to all extracted values
+        self.apply_transformations(&mut values);
+
+        return values
+            .iter()
+            .any(|str| self.evaluate_operation(str));
+    }
+
+    fn apply_transformations(&self, values: &mut Vec<String>) {
+        let transformation_actions = self.transformations();
         if !transformation_actions.is_empty() {
             for value in values.iter_mut() {
                 *value = value.to_lowercase();
@@ -56,10 +63,6 @@ impl Rule {
                 // }
             }
         }
-
-        return values
-            .iter()
-            .any(|str| self.evaluate_operation(str));
     }
 
     fn transformations(&self) -> Vec<RuleAction> {
