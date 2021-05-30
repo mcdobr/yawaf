@@ -266,7 +266,6 @@ fn parse_rules_should_parse_multiple_rules_completely() {
                 operator_type: RuleOperatorType::IpMatch,
                 argument: "192.168.1.101".to_string(),
             },
-            transformations: "".to_string(),
             actions: vec![
                 RuleAction {
                     action_type: RuleActionType::Id,
@@ -305,7 +304,6 @@ fn parse_rules_should_parse_multiple_rules_completely() {
                 operator_type: RuleOperatorType::BeginsWith,
                 argument: "/index.php/component/users/".to_string(),
             },
-            transformations: "".to_string(),
             actions: vec![
                 RuleAction {
                     action_type: RuleActionType::Id,
@@ -355,7 +353,6 @@ fn extract_variables_should_extract_headers() {
             operator_type: RuleOperatorType::DetectXSS,
             argument: "".to_string(),
         },
-        transformations: "".to_string(),
         actions: vec![],
     };
 
@@ -389,7 +386,6 @@ fn parse_rule_should_extract_basic_elements() {
                        operator_type: RuleOperatorType::EndsWith,
                        argument: "/admin/config/development/maintenance".to_string(),
                    },
-                   transformations: "".to_string(),
                    actions: vec![
                        RuleAction {
                            action_type: RuleActionType::Id,
