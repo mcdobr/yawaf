@@ -29,10 +29,7 @@ pub struct Rule {
 
 impl Rule {
     pub fn matches(&self, request: &Request<Body>) -> bool {
-        let transformation_actions = self.actions.clone()
-            .into_iter()
-            .filter(|action| action.action_type == RuleActionType::T)
-            .collect::<Vec<RuleAction>>();
+        let transformation_actions = self.transformations();
 
         let mut values: Vec<String> = self.variables.clone()
             .into_iter()
@@ -63,6 +60,13 @@ impl Rule {
         return values
             .iter()
             .any(|str| self.evaluate_operation(str));
+    }
+
+    fn transformations(&self) -> Vec<RuleAction> {
+        self.actions.clone()
+            .into_iter()
+            .filter(|action| action.action_type == RuleActionType::T)
+            .collect::<Vec<RuleAction>>()
     }
 }
 
