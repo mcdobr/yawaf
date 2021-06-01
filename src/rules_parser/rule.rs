@@ -28,7 +28,7 @@ pub struct Rule {
 }
 
 impl Rule {
-    pub fn matches(&self, request: &Request<Body>) -> bool {
+    pub fn matches(&self, request: &mut Request<Body>) -> bool {
         let mut values: Vec<String> = self.variables.clone()
             .into_iter()
             .flat_map(|var| {
@@ -73,7 +73,7 @@ impl Rule {
     }
 }
 
-fn extract_from(request: &Request<Body>, rule_var: &RuleVariable) -> Vec<String> {
+fn extract_from(request: &mut Request<Body>, rule_var: &RuleVariable) -> Vec<String> {
     return match rule_var.variable_type {
         RuleVariableType::Args => unimplemented!("Not implemented yet!"),
         RuleVariableType::ArgsCombinedSize => unimplemented!("Not implemented yet!"),
@@ -343,7 +343,7 @@ fn parse_rules_should_parse_multiple_rules_completely() {
 
 #[test]
 fn extract_variables_should_extract_headers() {
-    let request = Request::builder()
+    let mut request = Request::builder()
         .method("POST")
         .header("abcd", "qwerty")
         .header("ader", "<script>alert(1);</script>")
@@ -363,10 +363,10 @@ fn extract_variables_should_extract_headers() {
         actions: vec![],
     };
 
-    let str = extract_from(&request, &rule.variables[0]);
+    let str = extract_from(&mut request, &rule.variables[0]);
     println!("{:?}", str);
     assert!(!str.is_empty());
-    assert!(rule.matches(&request));
+    assert!(rule.matches(&mut request));
 }
 
 

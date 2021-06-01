@@ -27,14 +27,14 @@ impl WebApplicationFirewall {
         return self.apply_rules(request)
             .await
             // .and_then(|bytes| Ok(Request::from_parts(parts, Body::from(bytes))))
-            .map_err(|err| WafError::new("Could not handle HTTP request"));
+            .map_err(|_err| WafError::new("Could not handle HTTP request"));
     }
 
-    async fn apply_rules(&self, request: Request<Body>) -> Result<Request<Body>, WafError> {
+    async fn apply_rules(&self, mut request: Request<Body>) -> Result<Request<Body>, WafError> {
         if self.running_mode != Off {
             let matched_rules: Vec<Rule> = self.rules.iter()
                 .filter(|rule| {
-                    return rule.matches(&request);
+                    return rule.matches(&mut request);
                 })
                 .cloned()
                 .collect();
@@ -65,13 +65,13 @@ fn should_apply_sqli_detection_from_rule() {
     let rule = parse_rule(r###"SecRule REQUEST_HEADERS "@detectSQLi" "id:152""###)
         .unwrap().1;
 
-    let sqli_request = Request::builder()
+    let mut sqli_request = Request::builder()
         .method("GET")
         .uri("http://example.com")
         .header("abcd", "?' OR '1'='1'")
         .body(Body::empty())
         .unwrap();
-    assert!(rule.matches(&sqli_request));
+    assert!(rule.matches(&mut sqli_request));
 }
 
 #[test]
@@ -79,14 +79,14 @@ fn should_apply_xss_detection_from_rule() {
     let rule = parse_rule(r###"SecRule REQUEST_HEADERS "@detectXSS" "id:152""###)
         .unwrap().1;
 
-    let xss_request = Request::builder()
+    let mut xss_request = Request::builder()
         .method("POST")
         .uri("http://example.com")
         .header("content-type", "<script>alert(\"TEST\");</script>")
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(&xss_request));
+    assert!(rule.matches(&mut xss_request));
 }
 
 #[test]
@@ -100,10 +100,10 @@ fn should_match_ip() {
         .unwrap();
 
     request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 10000)));
-    assert!(rule.matches(&request));
+    assert!(rule.matches(&mut request));
 
     request.extensions_mut().insert(SocketAddr::from(([10, 0, 0, 1], 10000)));
-    assert!(!rule.matches(&request));
+    assert!(!rule.matches(&mut request));
 }
 
 #[test]
@@ -118,19 +118,19 @@ fn should_match_port() {
         .unwrap();
 
     request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 1000)));
-    assert!(rule.matches(&request));
+    assert!(rule.matches(&mut request));
 }
 
 #[test]
 fn should_match_count_cookies() {
     let rule = parse_rule(r###"SecRule &REQUEST_COOKIES "@eq 1" "id:44""###)
         .unwrap().1;
-    let request = Request::builder()
+    let mut request = Request::builder()
         .method("POST")
         .uri("http://example.com")
         .header(COOKIE, "abcd=efgh")
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(&request));
+    assert!(rule.matches(&mut request));
 }
