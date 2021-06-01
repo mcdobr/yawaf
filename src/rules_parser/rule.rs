@@ -1,4 +1,4 @@
-use hyper::{Body, Request};
+use hyper::{Body, Request, http};
 use nom::error::context;
 use nom::IResult;
 use nom::sequence::{tuple, delimited};
@@ -131,7 +131,9 @@ fn extract_from(request: &mut Request<Body>, rule_var: &RuleVariable) -> Vec<Str
         RuleVariableType::ReqbodyErrorMsg => unimplemented!("Not implemented yet!"),
         RuleVariableType::ReqbodyProcessor => unimplemented!("Not implemented yet!"),
         RuleVariableType::RequestBasename => unimplemented!("Not implemented yet!"),
-        RuleVariableType::RequestBody => unimplemented!("Not implemented yet!"),
+        RuleVariableType::RequestBody => {
+            todo!("Extract body");
+        }
         RuleVariableType::RequestBodyLength => unimplemented!("Not implemented yet!"),
         RuleVariableType::RequestCookies => request.headers().get(COOKIE)
             .into_iter()
@@ -421,4 +423,37 @@ fn parse_rule_should_extract_basic_elements() {
                    ],
                }
     );
+}
+
+async fn extract_body(request: Request<Body>) -> Request<Body> {
+    let (parts, body) = request.into_parts();
+    let bytes = hyper::body::to_bytes(body).await.unwrap();
+    let body_payload = String::fro m_utf8(bytes.to_vec()).unwrap();
+
+    println!("{}", body_payload);
+
+    return Request::from_parts(parts, Body::from(body_payload));
+}
+
+#[tokio::test]
+async fn extract_body_should_return_a_new_request() {
+    let mut request = Request::builder()
+        .method("POST")
+        .uri("/")
+        .header("Host", "localhost")
+        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+        .header("Accept-Language", " en-US,en;q=0.5")
+        .header("Accept-Encoding", " gzip, deflate")
+        .header("Content-Type", " application/x-www-form-urlencoded")
+        .header("Content-Length", " 32")
+        .header("Origin", " http://localhost")
+        .header("Referer", " http://localhost/vulnerabilities/exec/")
+        .extension(SocketAddr::from(([192, 168, 0, 1], 12000)))
+        .body(Body::from("ip=%3B+ls+-alh+%2F&Submit=Submit"))
+        .unwrap();
+
+
+    let extracted_request = extract_body(request).await;
+    assert_eq!("/", extracted_request.uri());
+    assert_eq!(8, extracted_request.headers().len());
 }

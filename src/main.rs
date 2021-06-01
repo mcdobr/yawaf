@@ -8,6 +8,7 @@ mod waf_error;
 mod injection;
 mod waf;
 mod waf_settings;
+mod req_clone;
 
 use hyper::service::{make_service_fn, service_fn};
 use std::convert::Infallible;
