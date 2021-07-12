@@ -29,7 +29,7 @@ pub struct Rule {
 
 impl Rule {
     pub fn matches(&self, request: &mut Request<Body>) -> bool {
-        let mut values: Vec<String> = self.variables.clone()
+        let mut raw_values: Vec<String> = self.variables.clone()
             .into_iter()
             .flat_map(|var| {
                 let extracted_values = extract_from(request, &var);
@@ -43,26 +43,44 @@ impl Rule {
             .collect();
 
         // apply all transformations to all extracted values
-        self.apply_transformations(&mut values);
+        let transformed_values = self.apply_transformations(&raw_values);
 
-        return values
+        return transformed_values
             .iter()
             .any(|str| self.evaluate_operation(str));
     }
 
-    fn apply_transformations(&self, values: &mut Vec<String>) {
+    fn apply_transformations(&self, values: &Vec<String>) -> Vec<String> {
+        let mut result: Vec<String> = Vec::new();
+
         let transformation_actions = self.transformations();
         if !transformation_actions.is_empty() {
-            for value in values.iter_mut() {
-                *value = value.to_lowercase();
-                // match transformation_actions[0].argument.unwrap_or(String::from("none")).as_ref() {
-                //     "base64Decode" => value,
-                //     // "urlDecode" => *value = serde_urlencoded::from_str::<String>(value).unwrap(),
-                //     "lowercase" => value.to_lowercase(),
-                //     _ => value,
-                // }
+            for raw_value in values.iter() {
+                let mut temp_value = raw_value.clone();
+                for transformation in transformation_actions.iter() {
+                    temp_value = match transformation.argument.as_ref().unwrap().as_str() {
+                        "base64Decode" => String::from_utf8(base64::decode(temp_value).unwrap()).unwrap(),
+                        "sqlHexDecode" => unimplemented!("Not implemented yet!"),
+                        "base64Encode" => base64::encode(temp_value),
+                        "cmdLine" => unimplemented!("Not implemented yet!"),
+                        "compressWhitespace" => {
+                            let whitespace_pattern = regex::Regex::new(r"\s+").unwrap();
+                            whitespace_pattern.replace_all(&*temp_value, " ").to_string()
+                        }
+                        "removeNulls" => temp_value.replace("\u{0000}", ""),
+                        "replaceNulls" => temp_value.replace("\u{0000}", " "),
+                        "lowercase" => temp_value.to_lowercase(),
+                        "uppercase" => temp_value.to_uppercase(),
+                        "urlDecode" => urlencoding::decode(&*temp_value).unwrap().to_string(),
+
+                        _ => temp_value,
+                    }
+                }
+                result.push(temp_value);
             }
         }
+
+        return result;
     }
 
     fn transformations(&self) -> Vec<RuleAction> {
@@ -78,7 +96,7 @@ async fn extract_from2(mut request: Request<Body>, rule_variable: &RuleVariable)
         RuleVariableType::RequestBody => {
             let (new_request, body) = extract_body(request).await;
             return (new_request, vec![body]);
-        },
+        }
         _ => unimplemented!("not implemented yet")
     }
 }
@@ -484,7 +502,7 @@ async fn extract_from_should_extract_request_body() {
 
     let (request_for_origin, vec) = extract_from2(request, &RuleVariable {
         count: false,
-        variable_type: RuleVariableType::RequestBody
+        variable_type: RuleVariableType::RequestBody,
     }).await;
 
     assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit".to_string()], vec);

@@ -1,6 +1,6 @@
 use crate::rules_parser::rule::{parse_rule, Rule};
 use crate::waf_running_mode::WafRunningMode;
-use hyper::{Request, Body, Response};
+use hyper::{Request, Body, Response, http};
 use crate::waf_error::WafError;
 use crate::waf_running_mode::WafRunningMode::{Off, On, DetectionOnly};
 use std::net::SocketAddr;
@@ -10,6 +10,7 @@ use futures::TryFutureExt;
 use hyper::http::request::Parts;
 use bytes::Bytes;
 use std::error::Error;
+use std::str::FromStr;
 
 pub struct WebApplicationFirewall {
     pub(crate) rules: Vec<Rule>,
@@ -127,8 +128,31 @@ fn should_match_count_cookies() {
         .unwrap().1;
     let mut request = Request::builder()
         .method("POST")
-        .uri("http://example.com")
+        .uri("https://example.com")
         .header(COOKIE, "abcd=efgh")
+        .body(Body::empty())
+        .unwrap();
+
+    assert!(rule.matches(&mut request));
+}
+
+#[test]
+fn rule_should_match_trivial_dom_xss_attempt() {
+    // todo: need to url decode the actual url
+    let rule = parse_rule(r###"SecRule ARGS_GET "@rx (?i)<script[^>]*>[\s\S]*?" "id:3,block,t:urlDecode""###)
+        .unwrap().1;
+
+    let payload = urlencoding::encode("<scRiPt>alert(1);</scRiPt>").to_string();
+
+    let raw_uri = format!("{}{}", "https://example.com?parameter=", payload.as_str());
+    println!("{}", raw_uri);
+
+    let uri = http::Uri::from_str(&*raw_uri).unwrap();
+    println!("{}", uri);
+
+    let mut request = Request::builder()
+        .method("GET")
+        .uri(uri)
         .body(Body::empty())
         .unwrap();
 
