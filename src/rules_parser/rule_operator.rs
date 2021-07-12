@@ -9,6 +9,7 @@ use std::convert::identity;
 use crate::rules_parser::rule::Rule;
 use std::net::IpAddr;
 use std::str::FromStr;
+use regex::Regex;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuleOperator {
@@ -107,6 +108,7 @@ impl std::convert::From<&str> for RuleOperatorType {
 }
 
 pub fn parse_operator(input: &str) -> IResult<&str, RuleOperator> {
+    // todo: default should be @rx
     context(
         "rule operator",
         delimited(
@@ -158,7 +160,7 @@ impl Rule {
             RuleOperatorType::PmFromFile => unimplemented!("Not implemented yet!"),
             RuleOperatorType::Rbl => unimplemented!("Not implemented yet!"),
             RuleOperatorType::Rsub => unimplemented!("Not implemented yet!"),
-            RuleOperatorType::Regex => unimplemented!("Not implemented yet!"),
+            RuleOperatorType::Regex => regex_match(input, pattern),
             RuleOperatorType::StrEq => str_eq(input, pattern),
             RuleOperatorType::StrMatch => str_match(input, pattern),
             RuleOperatorType::UnconditionalMatch => unconditional_match(),
@@ -179,6 +181,11 @@ impl Rule {
             operation_result
         };
     }
+}
+
+fn regex_match(input: &str, pattern: &str) -> bool {
+    let regex = regex::Regex::new(pattern).unwrap();
+    return regex.is_match(input);
 }
 
 fn detect_sqli(input: &str) -> bool {
@@ -256,6 +263,13 @@ fn parse_numeric(input: &str, pattern: &str) -> (i32, i32) {
     let input_numeric = input.parse::<i32>().unwrap_or(0);
     let pattern_numeric = pattern.parse::<i32>().unwrap();
     (input_numeric, pattern_numeric)
+}
+
+#[test]
+fn regex_should_match_modsecurity_example() {
+    assert_eq!(true, regex_match("<script>alert(1);</script>", r###"(?i)<script[^>]*>[\s\S]*?"###));
+    assert_eq!(true, regex_match("<sCrIpT>alert(1);</sCrIpT>", r###"(?i)<script[^>]*>[\s\S]*?"###));
+    assert_eq!(true, regex_match("<scr<script>ipt>alert(1);</scr</script>ipt>", r###"(?i)<script[^>]*>[\s\S]*?"###));
 }
 
 #[test]
