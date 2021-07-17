@@ -28,8 +28,8 @@ pub struct Rule {
 }
 
 impl Rule {
-    pub fn matches(&self, mut request: Request<Body>) -> (Request<Body>, bool) {
-        let (reconstructed_request, raw_values) = self.extract_raw_values(request);
+    pub async fn matches(&self, mut request: Request<Body>) -> (Request<Body>, bool) {
+        let (reconstructed_request, raw_values) = self.extract_raw_values(request).await;
 
         let transformed_values = self.transform(raw_values);
 
@@ -39,10 +39,11 @@ impl Rule {
         return (reconstructed_request, matched_any_rules);
     }
 
-    fn extract_raw_values(&self, mut request: Request<Body>) -> (Request<Body>, Vec<String>) {
+    async fn extract_raw_values(&self, mut request: Request<Body>) -> (Request<Body>, Vec<String>) {
         let mut raw_values: Vec<String> = vec![];
         for var in self.variables.clone().iter() {
-            let (reconstructed_request, mut extracted_values) = extract_from(request, &var);
+            let (reconstructed_request, mut extracted_values) = extract_from(request, &var)
+                .await;
 
 
             request = reconstructed_request;
@@ -107,16 +108,6 @@ impl Rule {
     }
 }
 
-async fn extract_from2(request: Request<Body>, rule_variable: &RuleVariable) -> (Request<Body>, Vec<String>) {
-    match rule_variable.variable_type {
-        RuleVariableType::RequestBody => {
-            let (new_request, body) = extract_body(request).await;
-            return (new_request, vec![body]);
-        }
-        _ => unimplemented!("not implemented yet")
-    }
-}
-
 fn wrap_non_destructive(request: Request<Body>, extraction_operation: fn(&Request<Body>) -> Vec<String>) -> (Request<Body>, Vec<String>) {
     let extracted_values = extraction_operation(&request);
     (request, extracted_values)
@@ -166,7 +157,7 @@ fn extract_args_get(request: &Request<Body>) -> Vec<String> {
     vec![request.uri().query().unwrap_or_else(|| "").to_string()]
 }
 
-fn extract_from(request: Request<Body>, rule_var: &RuleVariable) -> (Request<Body>, Vec<String>) {
+async fn extract_from(request: Request<Body>, rule_var: &RuleVariable) -> (Request<Body>, Vec<String>) {
     let (reconstructed_request, mut extracted_values) =
         match rule_var.variable_type {
             RuleVariableType::Args => unimplemented!("Not implemented yet!"),
@@ -223,7 +214,7 @@ fn extract_from(request: Request<Body>, rule_var: &RuleVariable) -> (Request<Bod
             RuleVariableType::ReqbodyErrorMsg => unimplemented!("Not implemented yet!"),
             RuleVariableType::ReqbodyProcessor => unimplemented!("Not implemented yet!"),
             RuleVariableType::RequestBasename => unimplemented!("Not implemented yet!"),
-            RuleVariableType::RequestBody => unimplemented!("Not implemented yet!"),
+            RuleVariableType::RequestBody => extract_body(request).await,
             RuleVariableType::RequestBodyLength => unimplemented!("Not implemented yet!"),
             RuleVariableType::RequestCookies => wrap_non_destructive(request, extract_cookies),
             RuleVariableType::RequestCookiesNames => unimplemented!("Not implemented yet!"),
@@ -344,6 +335,14 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
         })
 }
 
+async fn extract_body(request: Request<Body>) -> (Request<Body>, Vec<String>) {
+    let (parts, body) = request.into_parts();
+    let bytes = hyper::body::to_bytes(body).await.unwrap();
+    let body_payload = String::from_utf8(bytes.to_vec()).unwrap();
+
+    return (Request::from_parts(parts, Body::from(body_payload.clone())), vec![body_payload]);
+}
+
 #[test]
 fn parse_rules_should_parse_multiple_rules_completely() {
     let rules = parse_rules(r###"
@@ -436,8 +435,9 @@ fn parse_rules_should_parse_multiple_rules_completely() {
     ], rules);
 }
 
-#[test]
-fn extract_variables_should_extract_headers() {
+
+#[tokio::test]
+async fn extract_variables_should_extract_headers() {
     let mut request = Request::builder()
         .method("POST")
         .header("abcd", "qwerty")
@@ -458,11 +458,10 @@ fn extract_variables_should_extract_headers() {
         actions: vec![],
     };
 
-    let extracted_values = extract_from(request, &rule.variables[0]).1;
+    let extracted_values = extract_from(request, &rule.variables[0]).await.1;
     println!("{:?}", extracted_values);
     assert!(!extracted_values.is_empty());
 }
-
 
 #[test]
 fn parse_rule_should_extract_basic_elements() {
@@ -517,14 +516,6 @@ fn parse_rule_should_extract_basic_elements() {
     );
 }
 
-async fn extract_body(request: Request<Body>) -> (Request<Body>, String) {
-    let (parts, body) = request.into_parts();
-    let bytes = hyper::body::to_bytes(body).await.unwrap();
-    let body_payload = String::from_utf8(bytes.to_vec()).unwrap();
-
-    return (Request::from_parts(parts, Body::from(body_payload.clone())), body_payload);
-}
-
 #[tokio::test]
 async fn extract_body_should_return_a_new_request() {
     let mut request = Request::builder()
@@ -546,7 +537,7 @@ async fn extract_body_should_return_a_new_request() {
     let (extracted_request, body) = extract_body(request).await;
     assert_eq!("/", extracted_request.uri());
     assert_eq!(8, extracted_request.headers().len());
-    assert_eq!("ip=%3B+ls+-alh+%2F&Submit=Submit", body);
+    assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit"], body);
 }
 
 #[tokio::test]
@@ -566,7 +557,7 @@ async fn extract_from_should_extract_request_body() {
         .body(Body::from("ip=%3B+ls+-alh+%2F&Submit=Submit"))
         .unwrap();
 
-    let (request_for_origin, vec) = extract_from2(request, &RuleVariable {
+    let (request_for_origin, vec) = extract_from(request, &RuleVariable {
         count: false,
         variable_type: RuleVariableType::RequestBody,
     }).await;

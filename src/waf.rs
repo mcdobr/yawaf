@@ -30,7 +30,7 @@ impl WebApplicationFirewall {
 
             let mut matched_rules: Vec<Rule> = vec![];
             for rule in self.rules.iter() {
-                let (reconstructed_request, is_matched) = rule.matches(request);
+                let (reconstructed_request, is_matched) = rule.matches(request).await;
                 request = reconstructed_request;
                 if is_matched {
                     matched_rules.push(rule.clone());
@@ -55,8 +55,8 @@ impl WebApplicationFirewall {
     }
 }
 
-#[test]
-fn should_apply_sqli_detection_from_rule() {
+#[tokio::test]
+async fn should_apply_sqli_detection_from_rule() {
     // todo: how do i detect sqli attacks in GET requests if query params are percent encoded?
     //  should i manually url decode them and check? hyper::Uri does not seem to
     //  support special characters or
@@ -69,11 +69,11 @@ fn should_apply_sqli_detection_from_rule() {
         .header("abcd", "?' OR '1'='1'")
         .body(Body::empty())
         .unwrap();
-    assert!(rule.matches(sqli_request).1);
+    assert!(rule.matches(sqli_request).await.1);
 }
 
-#[test]
-fn should_apply_xss_detection_from_rule() {
+#[tokio::test]
+async fn should_apply_xss_detection_from_rule() {
     let rule = parse_rule(r###"SecRule REQUEST_HEADERS "@detectXSS" "id:152""###)
         .unwrap().1;
 
@@ -84,11 +84,11 @@ fn should_apply_xss_detection_from_rule() {
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(xss_request).1);
+    assert!(rule.matches(xss_request).await.1);
 }
 
-#[test]
-fn should_match_ip() {
+#[tokio::test]
+async fn should_match_ip() {
     let rule = parse_rule(r###"SecRule REMOTE_ADDR "@ipMatch 192.168.1.101" "id:35""###)
         .unwrap().1;
     let mut request = Request::builder()
@@ -98,11 +98,11 @@ fn should_match_ip() {
         .unwrap();
 
     request.extensions_mut().insert(SocketAddr::from(([10, 0, 0, 1], 10000)));
-    assert!(!rule.matches(request).1);
+    assert!(!rule.matches(request).await.1);
 }
 
-#[test]
-fn should_match_port() {
+#[tokio::test]
+async fn should_match_port() {
     let rule = parse_rule(r###"SecRule REMOTE_PORT "@lt 1024" "id:37""###)
         .unwrap().1;
 
@@ -113,11 +113,11 @@ fn should_match_port() {
         .unwrap();
 
     request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 1000)));
-    assert!(rule.matches(request).1);
+    assert!(rule.matches(request).await.1);
 }
 
-#[test]
-fn should_match_count_cookies() {
+#[tokio::test]
+async fn should_match_count_cookies() {
     let rule = parse_rule(r###"SecRule &REQUEST_COOKIES "@eq 1" "id:44""###)
         .unwrap().1;
     let mut request = Request::builder()
@@ -127,11 +127,11 @@ fn should_match_count_cookies() {
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(request).1);
+    assert!(rule.matches(request).await.1);
 }
 
-#[test]
-fn rule_should_match_trivial_dom_xss_attempt() {
+#[tokio::test]
+async fn rule_should_match_trivial_dom_xss_attempt() {
     // todo: need to url decode the actual url
     let rule = parse_rule(r###"SecRule ARGS_GET "@rx (?i)<script[^>]*>[\s\S]*?" "id:3,block,t:urlDecode""###)
         .unwrap().1;
@@ -150,5 +150,5 @@ fn rule_should_match_trivial_dom_xss_attempt() {
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(request).1);
+    assert!(rule.matches(request).await.1);
 }
