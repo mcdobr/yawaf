@@ -20,25 +20,22 @@ pub struct WebApplicationFirewall {
 impl WebApplicationFirewall {
     pub async fn inspect_request(&self, request: Request<Body>)
                                  -> Result<Request<Body>, WafError> {
-        // let (parts, body) = request.into_parts();
-
-        // return hyper::body::to_bytes(body)
-        //     .await
-        // .and_then(|bytes| self.apply_rules(request))
         return self.apply_rules(request)
             .await
-            // .and_then(|bytes| Ok(Request::from_parts(parts, Body::from(bytes))))
             .map_err(|_err| WafError::new("Could not handle HTTP request"));
     }
 
     async fn apply_rules(&self, mut request: Request<Body>) -> Result<Request<Body>, WafError> {
         if self.running_mode != Off {
-            let matched_rules: Vec<Rule> = self.rules.iter()
-                .filter(|rule| {
-                    return rule.matches(&mut request);
-                })
-                .cloned()
-                .collect();
+
+            let mut matched_rules: Vec<Rule> = vec![];
+            for rule in self.rules.iter() {
+                let (reconstructed_request, is_matched) = rule.matches(request);
+                request = reconstructed_request;
+                if is_matched {
+                    matched_rules.push(rule.clone());
+                }
+            }
 
             if !matched_rules.is_empty() {
                 log::warn!("Request {:?} matches: {:?}", request, matched_rules);
@@ -72,7 +69,7 @@ fn should_apply_sqli_detection_from_rule() {
         .header("abcd", "?' OR '1'='1'")
         .body(Body::empty())
         .unwrap();
-    assert!(rule.matches(&mut sqli_request));
+    assert!(rule.matches(sqli_request).1);
 }
 
 #[test]
@@ -87,7 +84,7 @@ fn should_apply_xss_detection_from_rule() {
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(&mut xss_request));
+    assert!(rule.matches(xss_request).1);
 }
 
 #[test]
@@ -100,11 +97,8 @@ fn should_match_ip() {
         .body(Body::empty())
         .unwrap();
 
-    request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 10000)));
-    assert!(rule.matches(&mut request));
-
     request.extensions_mut().insert(SocketAddr::from(([10, 0, 0, 1], 10000)));
-    assert!(!rule.matches(&mut request));
+    assert!(!rule.matches(request).1);
 }
 
 #[test]
@@ -119,7 +113,7 @@ fn should_match_port() {
         .unwrap();
 
     request.extensions_mut().insert(SocketAddr::from(([192, 168, 1, 101], 1000)));
-    assert!(rule.matches(&mut request));
+    assert!(rule.matches(request).1);
 }
 
 #[test]
@@ -133,7 +127,7 @@ fn should_match_count_cookies() {
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(&mut request));
+    assert!(rule.matches(request).1);
 }
 
 #[test]
@@ -156,5 +150,5 @@ fn rule_should_match_trivial_dom_xss_attempt() {
         .body(Body::empty())
         .unwrap();
 
-    assert!(rule.matches(&mut request));
+    assert!(rule.matches(request).1);
 }
