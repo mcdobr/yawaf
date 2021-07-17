@@ -77,7 +77,11 @@ impl Rule {
                         "lowercase" => temp_value.to_lowercase(),
                         "uppercase" => temp_value.to_uppercase(),
                         "urlDecode" => urlencoding::decode(&*temp_value).unwrap().to_string(),
-
+                        "urlEncode" => unimplemented!("Not implemented yet!"),
+                        "hexDecode" => unimplemented!("Not implemented yet!"),
+                        "hexEncode" => unimplemented!("Not implemented yet!"),
+                        "htmlEntityEncode" => html_escape::encode_safe(temp_value.as_str()).to_string(),
+                        "htmlEntityDecode" => html_escape::decode_html_entities(temp_value.as_str()).to_string(),
                         _ => temp_value,
                     }
                 }
