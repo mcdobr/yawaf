@@ -43,7 +43,12 @@ impl Rule {
             .collect();
 
         // apply all transformations to all extracted values
-        let transformed_values = self.apply_transformations(&raw_values);
+        let transformed_values;
+        if !self.transformations().is_empty() {
+            transformed_values = self.apply_transformations(&raw_values);
+        } else {
+            transformed_values = raw_values;
+        }
 
         return transformed_values
             .iter()
