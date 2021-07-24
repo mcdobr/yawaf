@@ -1,5 +1,24 @@
 extern crate libinjection;
 
+use std::{env, fs};
+use std::convert::Infallible;
+use std::fs::{DirEntry, ReadDir};
+use std::net::SocketAddr;
+use std::path::Path;
+
+use hyper::{Client, Server};
+use hyper::client::HttpConnector;
+use hyper::http::HeaderValue;
+use hyper::server::conn::AddrStream;
+use hyper::service::{make_service_fn, service_fn};
+
+use crate::reverse_proxy::ReverseProxy;
+use crate::rules_parser::rule::{parse_rule, parse_rules, Rule};
+use crate::waf::WebApplicationFirewall;
+use crate::waf_running_mode::WafRunningMode;
+use crate::waf_settings::WafSettings;
+use crate::engine::rule_based_engine::RuleBasedEngine;
+
 mod reverse_proxy;
 mod waf_running_mode;
 
@@ -8,23 +27,7 @@ mod waf_error;
 mod injection;
 mod waf;
 mod waf_settings;
-mod req_clone;
-
-use hyper::service::{make_service_fn, service_fn};
-use std::convert::Infallible;
-use hyper::{Server, Client};
-use std::net::SocketAddr;
-use hyper::client::HttpConnector;
-use crate::reverse_proxy::ReverseProxy;
-use crate::waf_settings::WafSettings;
-use crate::waf::WebApplicationFirewall;
-use crate::waf_running_mode::WafRunningMode;
-use hyper::server::conn::AddrStream;
-use hyper::http::HeaderValue;
-use std::path::Path;
-use std::fs::{DirEntry, ReadDir};
-use std::{env, fs};
-use crate::rules_parser::rule::{parse_rule, parse_rules, Rule};
+mod engine;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -61,9 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let http_client = Client::builder().build(http_connector);
 
     let waf = WebApplicationFirewall {
-        rules: rules.concat(),
-        // running_mode: WafRunningMode::DetectionOnly,
-        running_mode: WafRunningMode::On,
+        engine: Box::new(RuleBasedEngine::new(WafRunningMode::On, rules.concat())),
     };
 
     let reverse_proxy = std::sync::Arc::new(ReverseProxy {

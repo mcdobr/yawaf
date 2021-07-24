@@ -6,52 +6,31 @@ use crate::waf_running_mode::WafRunningMode::{Off, On, DetectionOnly};
 use std::net::SocketAddr;
 use crate::rules_parser::rule_variable::RuleVariableType::RequestHeaders;
 use hyper::header::COOKIE;
-use futures::TryFutureExt;
 use hyper::http::request::Parts;
 use bytes::Bytes;
 use std::error::Error;
 use std::str::FromStr;
+use crate::engine::waf_engine::WafEngine;
 
 pub struct WebApplicationFirewall {
-    pub(crate) rules: Vec<Rule>,
-    pub(crate) running_mode: WafRunningMode,
+    pub(crate) engine: Box<dyn WafEngine + Send + Sync>,
 }
 
 impl WebApplicationFirewall {
+    pub fn new(engine: Box<dyn WafEngine + Send + Sync>) -> Self {
+        Self {
+            engine
+        }
+    }
+
     pub async fn inspect_request(&self, request: Request<Body>)
                                  -> Result<Request<Body>, WafError> {
-        return self.apply_rules(request)
-            .await
-            .map_err(|_err| WafError::new("Could not handle HTTP request"));
+        self.engine.inspect_request(request).await
     }
 
-    async fn apply_rules(&self, mut request: Request<Body>) -> Result<Request<Body>, WafError> {
-        if self.running_mode != Off {
-
-            let mut matched_rules: Vec<Rule> = vec![];
-            for rule in self.rules.iter() {
-                let (reconstructed_request, is_matched) = rule.matches(request).await;
-                request = reconstructed_request;
-                if is_matched {
-                    matched_rules.push(rule.clone());
-                }
-            }
-
-            if !matched_rules.is_empty() {
-                log::warn!("Request {:?} matches: {:?}", request, matched_rules);
-                if self.running_mode == On {
-                    log::warn!("Blocking request {:?}", request);
-                    return Err(WafError::new("Blocked request"));
-                }
-            }
-        }
-        // Ok(bytes)
-        Ok(request)
-    }
-
-    pub fn inspect_response(&self, mut response: Response<Body>) -> Result<Response<Body>, WafError> {
-        // todo: implement inspect logic for response
-        return Ok(response);
+    pub async fn inspect_response(&self, response: Response<Body>)
+                                  -> Result<Response<Body>, WafError> {
+        self.engine.inspect_response(response).await
     }
 }
 

@@ -7,8 +7,7 @@ pub struct WafSettings {
     pub authority: String,
     pub port: u16,
     pub upstream: String,
-    pub rules: String,
-    // running_mode: WafRunningMode,
+    pub rules: String
 }
 
 impl WafSettings {
@@ -21,8 +20,8 @@ impl WafSettings {
         config.merge(Environment::with_prefix("yawaf"))?;
 
         log::debug!("Loaded configuration = {:?}", config);
-        let result = config.try_into();
-        log::info!("Loaded WAF settings = {:?}", result);
-        return result;
+        let waf_settings_result = config.try_into();
+        log::info!("Loaded WAF settings = {:?}", waf_settings_result);
+        return waf_settings_result;
     }
 }

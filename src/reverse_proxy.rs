@@ -59,8 +59,11 @@ impl ReverseProxy {
             .and_then(|response| {
                 log::debug!("Received response == {:?}", response);
                 Ok(response)
-            })
-            .and_then(|mut response| self.web_application_firewall.inspect_response(response));
+            });
+            // .and_then(|response| self.web_application_firewall
+            //     .inspect_response(response)
+            //     .await
+            // );
     }
 
     fn rewrite_uri(&self, request: &Request<Body>) -> Uri {
