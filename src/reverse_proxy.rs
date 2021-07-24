@@ -41,30 +41,47 @@ impl ReverseProxy {
             });
 
         if inspected_request_result.is_err() {
-            let blocked_response = Response::builder()
-                .status(StatusCode::FORBIDDEN)
-                .body(Body::from("Shoo! Go away!"))
-                .unwrap();
+            let blocked_response = ReverseProxy::create_blocked_response();
             return Ok(blocked_response);
         }
 
-        let received_response_result = match inspected_request_result {
-            Ok(normalized_request) => self.client.request(normalized_request)
-                .await
-                .map_err(|error| WafError::new("Unreachable origin")),
-            Err(error) => Err(error),
-        };
 
-        return received_response_result
+        let received_response_result = self.client
+            .request(inspected_request_result.unwrap())
+            .await
+            .map_err(|error| WafError::new("Unreachable origin"))
             .and_then(|response| {
                 log::debug!("Received response == {:?}", response);
                 Ok(response)
             });
-            // .and_then(|response| self.web_application_firewall
-            //     .inspect_response(response)
-            //     .await
-            // );
+
+
+        if received_response_result.is_err() {
+            let unreachable_origin_response = Response::builder()
+                .status(StatusCode::BAD_GATEWAY)
+                .body(Body::from("Could not service request"))
+                .unwrap();
+            return Ok(unreachable_origin_response);
+        }
+
+        let received_response = received_response_result.unwrap();
+
+        let inspected_response_result = self.web_application_firewall
+            .inspect_response(received_response)
+            .await;
+
+        let response = inspected_response_result.or(Ok(ReverseProxy::create_blocked_response()));
+        return response;
     }
+
+    fn create_blocked_response() -> Response<Body> {
+        let blocked_response = Response::builder()
+            .status(StatusCode::FORBIDDEN)
+            .body(Body::from("Shoo! Go away!"))
+            .unwrap();
+        blocked_response
+    }
+
 
     fn rewrite_uri(&self, request: &Request<Body>) -> Uri {
         // Change the request's URI
