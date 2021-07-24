@@ -18,7 +18,6 @@ use std::str::from_utf8;
 use bytes::BytesMut;
 use crate::rules_parser::rule_action::RuleActionType::T;
 
-/// todo: is order of variables and actions relevant or should it be set instead of vec?
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
     pub directive: RuleDirective,
@@ -28,7 +27,7 @@ pub struct Rule {
 }
 
 impl Rule {
-    pub async fn matches(&self, mut request: Request<Body>) -> (Request<Body>, bool) {
+    pub async fn matches(&self, request: Request<Body>) -> (Request<Body>, bool) {
         let (reconstructed_request, raw_values) = self.extract_raw_values(request).await;
 
         let transformed_values = self.transform(raw_values);
