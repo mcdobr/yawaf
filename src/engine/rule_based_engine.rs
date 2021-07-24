@@ -61,7 +61,6 @@ impl RuleBasedEngine {
                 }
             }
         }
-        // Ok(bytes)
         Ok(request)
     }
 }
