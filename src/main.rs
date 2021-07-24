@@ -8,12 +8,11 @@ use std::path::Path;
 
 use hyper::{Client, Server};
 use hyper::client::HttpConnector;
-use hyper::http::HeaderValue;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 
 use crate::reverse_proxy::ReverseProxy;
-use crate::rules_parser::rule::{parse_rule, parse_rules, Rule};
+use crate::rules_parser::rule::{parse_rules, Rule};
 use crate::waf::WebApplicationFirewall;
 use crate::waf_running_mode::WafRunningMode;
 use crate::waf_settings::WafSettings;
@@ -63,9 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let http_connector = HttpConnector::new();
     let http_client = Client::builder().build(http_connector);
 
-    let waf = WebApplicationFirewall {
-        engine: Box::new(RuleBasedEngine::new(WafRunningMode::On, rules.concat())),
-    };
+    let waf = WebApplicationFirewall::new(
+        Box::new(RuleBasedEngine::new(WafRunningMode::On, rules.concat())),
+    );
 
     let reverse_proxy = std::sync::Arc::new(ReverseProxy {
         client: http_client,

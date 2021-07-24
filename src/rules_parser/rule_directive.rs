@@ -2,7 +2,6 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::error::context;
 use nom::IResult;
-use crate::rules_parser::rule_directive;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RuleDirective {
@@ -72,10 +71,16 @@ pub fn parse_directive(input: &str) -> IResult<&str, RuleDirective> {
         ),
     )(input).map(|(next_input, directive_str)| (next_input, directive_str.into()))
 }
-  
-#[test]
-fn parse_rule_should_extract_directive() {
-    assert_eq!(RuleDirective::SecRule, rule_directive::parse_directive("SecRule").unwrap().1);
-    assert_eq!(RuleDirective::SecRuleScript,
-               rule_directive::parse_directive("SecRuleScript").unwrap().1);
+
+#[cfg(test)]
+mod tests {
+    use crate::rules_parser::rule_directive::RuleDirective;
+    use crate::rules_parser::rule_directive;
+
+    #[test]
+    fn parse_rule_should_extract_directive() {
+        assert_eq!(RuleDirective::SecRule, rule_directive::parse_directive("SecRule").unwrap().1);
+        assert_eq!(RuleDirective::SecRuleScript,
+                   rule_directive::parse_directive("SecRuleScript").unwrap().1);
+    }
 }

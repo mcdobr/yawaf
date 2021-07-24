@@ -1,4 +1,4 @@
-use hyper::{Body, Request, http, Version};
+use hyper::{Body, Request};
 use nom::error::context;
 use nom::IResult;
 use nom::sequence::{tuple, delimited};
@@ -6,17 +6,11 @@ use nom::character::complete::{multispace1, multispace0};
 use crate::rules_parser::rule_directive::RuleDirective;
 use crate::rules_parser::rule_variable::{RuleVariableType, RuleVariable};
 use crate::rules_parser::{rule_directive, rule_variable, rule_operator, rule_action};
-use crate::rules_parser::rule_operator::{RuleOperator, RuleOperatorType};
+use crate::rules_parser::rule_operator::{RuleOperator};
 use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
 use hyper::http::uri::PathAndQuery;
-use crate::rules_parser::rule_variable::RuleVariableType::RemoteAddr;
 use std::net::SocketAddr;
 use hyper::header::COOKIE;
-use futures::Stream;
-use hyper::body::Bytes;
-use std::str::from_utf8;
-use bytes::BytesMut;
-use crate::rules_parser::rule_action::RuleActionType::T;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -342,9 +336,19 @@ async fn extract_body(request: Request<Body>) -> (Request<Body>, Vec<String>) {
     return (Request::from_parts(parts, Body::from(body_payload.clone())), vec![body_payload]);
 }
 
-#[test]
-fn parse_rules_should_parse_multiple_rules_completely() {
-    let rules = parse_rules(r###"
+#[cfg(test)]
+mod tests {
+    use crate::rules_parser::rule::{parse_rules, Rule, extract_from, parse_rule, extract_body};
+    use crate::rules_parser::rule_directive::RuleDirective;
+    use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
+    use crate::rules_parser::rule_variable::{RuleVariable, RuleVariableType};
+    use crate::rules_parser::rule_operator::{RuleOperatorType, RuleOperator};
+    use hyper::{Version, Body, Request};
+    use std::net::SocketAddr;
+
+    #[test]
+    fn parse_rules_should_parse_multiple_rules_completely() {
+        let rules = parse_rules(r###"
     SecRule REMOTE_ADDR "@ipMatch 192.168.1.101" \
         "id:102,phase:1,t:none,nolog,pass,ctl:ruleEngine=off"
 
@@ -352,119 +356,119 @@ fn parse_rules_should_parse_multiple_rules_completely() {
         "id:5,phase:1,t:none,pass,nolog,ctl:ruleRemoveTargetById=981318"
 "###);
 
-    assert_eq!(vec![
-        Rule {
-            directive: RuleDirective::SecRule,
-            variables: vec![
-                RuleVariable {
-                    count: false,
-                    variable_type: RuleVariableType::RemoteAddr,
-                }
-            ],
-            operator: RuleOperator {
-                negated: false,
-                operator_type: RuleOperatorType::IpMatch,
-                argument: "192.168.1.101".to_string(),
+        assert_eq!(vec![
+            Rule {
+                directive: RuleDirective::SecRule,
+                variables: vec![
+                    RuleVariable {
+                        count: false,
+                        variable_type: RuleVariableType::RemoteAddr,
+                    }
+                ],
+                operator: RuleOperator {
+                    negated: false,
+                    operator_type: RuleOperatorType::IpMatch,
+                    argument: "192.168.1.101".to_string(),
+                },
+                actions: vec![
+                    RuleAction {
+                        action_type: RuleActionType::Id,
+                        argument: Some("102".to_string()),
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Phase,
+                        argument: Some("1".to_string()),
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::T,
+                        argument: Some("none".to_string()),
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Nolog,
+                        argument: None,
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Pass,
+                        argument: None,
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Ctl,
+                        argument: Some("ruleEngine=off".to_string()),
+                    },
+                ],
             },
-            actions: vec![
-                RuleAction {
-                    action_type: RuleActionType::Id,
-                    argument: Some("102".to_string()),
+            Rule {
+                directive: RuleDirective::SecRule,
+                variables: vec![RuleVariable {
+                    count: false,
+                    variable_type: RuleVariableType::RequestUri,
+                }],
+                operator: RuleOperator {
+                    negated: false,
+                    operator_type: RuleOperatorType::BeginsWith,
+                    argument: "/index.php/component/users/".to_string(),
                 },
-                RuleAction {
-                    action_type: RuleActionType::Phase,
-                    argument: Some("1".to_string()),
-                },
-                RuleAction {
-                    action_type: RuleActionType::T,
-                    argument: Some("none".to_string()),
-                },
-                RuleAction {
-                    action_type: RuleActionType::Nolog,
-                    argument: None,
-                },
-                RuleAction {
-                    action_type: RuleActionType::Pass,
-                    argument: None,
-                },
-                RuleAction {
-                    action_type: RuleActionType::Ctl,
-                    argument: Some("ruleEngine=off".to_string()),
-                },
-            ],
-        },
-        Rule {
+                actions: vec![
+                    RuleAction {
+                        action_type: RuleActionType::Id,
+                        argument: Some("5".to_string()),
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Phase,
+                        argument: Some("1".to_string()),
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::T,
+                        argument: Some("none".to_string()),
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Pass,
+                        argument: None,
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Nolog,
+                        argument: None,
+                    },
+                    RuleAction {
+                        action_type: RuleActionType::Ctl,
+                        argument: Some("ruleRemoveTargetById=981318".to_string()),
+                    },
+                ],
+            }
+        ], rules);
+    }
+
+
+    #[tokio::test]
+    async fn extract_variables_should_extract_headers() {
+        let mut request = Request::builder()
+            .method("POST")
+            .header("abcd", "qwerty")
+            .header("ader", "<script>alert(1);</script>")
+            .body(Body::empty())
+            .unwrap();
+        let rule = Rule {
             directive: RuleDirective::SecRule,
             variables: vec![RuleVariable {
                 count: false,
-                variable_type: RuleVariableType::RequestUri,
+                variable_type: RuleVariableType::RequestHeaders,
             }],
             operator: RuleOperator {
                 negated: false,
-                operator_type: RuleOperatorType::BeginsWith,
-                argument: "/index.php/component/users/".to_string(),
+                operator_type: RuleOperatorType::DetectXSS,
+                argument: "".to_string(),
             },
-            actions: vec![
-                RuleAction {
-                    action_type: RuleActionType::Id,
-                    argument: Some("5".to_string()),
-                },
-                RuleAction {
-                    action_type: RuleActionType::Phase,
-                    argument: Some("1".to_string()),
-                },
-                RuleAction {
-                    action_type: RuleActionType::T,
-                    argument: Some("none".to_string()),
-                },
-                RuleAction {
-                    action_type: RuleActionType::Pass,
-                    argument: None,
-                },
-                RuleAction {
-                    action_type: RuleActionType::Nolog,
-                    argument: None,
-                },
-                RuleAction {
-                    action_type: RuleActionType::Ctl,
-                    argument: Some("ruleRemoveTargetById=981318".to_string()),
-                },
-            ],
-        }
-    ], rules);
-}
+            actions: vec![],
+        };
 
+        let extracted_values = extract_from(request, &rule.variables[0]).await.1;
+        println!("{:?}", extracted_values);
+        assert!(!extracted_values.is_empty());
+    }
 
-#[tokio::test]
-async fn extract_variables_should_extract_headers() {
-    let mut request = Request::builder()
-        .method("POST")
-        .header("abcd", "qwerty")
-        .header("ader", "<script>alert(1);</script>")
-        .body(Body::empty())
-        .unwrap();
-    let rule = Rule {
-        directive: RuleDirective::SecRule,
-        variables: vec![RuleVariable {
-            count: false,
-            variable_type: RuleVariableType::RequestHeaders,
-        }],
-        operator: RuleOperator {
-            negated: false,
-            operator_type: RuleOperatorType::DetectXSS,
-            argument: "".to_string(),
-        },
-        actions: vec![],
-    };
-
-    let extracted_values = extract_from(request, &rule.variables[0]).await.1;
-    println!("{:?}", extracted_values);
-    assert!(!extracted_values.is_empty());
-}
-
-#[test]
-fn parse_rule_should_extract_basic_elements() {
-    let raw_rule = r###"SecRule REQUEST_FILENAME "@endsWith /admin/config/development/maintenance" \
+    #[test]
+    fn parse_rule_should_extract_basic_elements() {
+        let raw_rule = r###"SecRule REQUEST_FILENAME "@endsWith /admin/config/development/maintenance" \
         "id:9001128,\
         phase:2,\
         pass,\
@@ -473,94 +477,95 @@ fn parse_rule_should_extract_basic_elements() {
         ver:'OWASP_CRS/3.3.0'"
     "###.replace("\\\n", " ").to_owned();
 
-    assert_eq!(parse_rule(&*raw_rule).unwrap().1,
-               Rule {
-                   directive: RuleDirective::SecRule,
-                   variables: vec![RuleVariable {
-                       count: false,
-                       variable_type: RuleVariableType::RequestFilename,
-                   }],
-                   operator: RuleOperator {
-                       negated: false,
-                       operator_type: RuleOperatorType::EndsWith,
-                       argument: "/admin/config/development/maintenance".to_string(),
-                   },
-                   actions: vec![
-                       RuleAction {
-                           action_type: RuleActionType::Id,
-                           argument: Some("9001128".to_string()),
+        assert_eq!(parse_rule(&*raw_rule).unwrap().1,
+                   Rule {
+                       directive: RuleDirective::SecRule,
+                       variables: vec![RuleVariable {
+                           count: false,
+                           variable_type: RuleVariableType::RequestFilename,
+                       }],
+                       operator: RuleOperator {
+                           negated: false,
+                           operator_type: RuleOperatorType::EndsWith,
+                           argument: "/admin/config/development/maintenance".to_string(),
                        },
-                       RuleAction {
-                           action_type: RuleActionType::Phase,
-                           argument: Some("2".to_string()),
-                       },
-                       RuleAction {
-                           action_type: RuleActionType::Pass,
-                           argument: None,
-                       },
-                       RuleAction {
-                           action_type: RuleActionType::Nolog,
-                           argument: None,
-                       },
-                       RuleAction {
-                           action_type: RuleActionType::Ctl,
-                           argument: Some("ruleRemoveById=942440".to_string()),
-                       },
-                       RuleAction {
-                           action_type: RuleActionType::Ver,
-                           argument: Some("'OWASP_CRS/3.3.0'".to_string()),
-                       },
-                   ],
-               }
-    );
-}
+                       actions: vec![
+                           RuleAction {
+                               action_type: RuleActionType::Id,
+                               argument: Some("9001128".to_string()),
+                           },
+                           RuleAction {
+                               action_type: RuleActionType::Phase,
+                               argument: Some("2".to_string()),
+                           },
+                           RuleAction {
+                               action_type: RuleActionType::Pass,
+                               argument: None,
+                           },
+                           RuleAction {
+                               action_type: RuleActionType::Nolog,
+                               argument: None,
+                           },
+                           RuleAction {
+                               action_type: RuleActionType::Ctl,
+                               argument: Some("ruleRemoveById=942440".to_string()),
+                           },
+                           RuleAction {
+                               action_type: RuleActionType::Ver,
+                               argument: Some("'OWASP_CRS/3.3.0'".to_string()),
+                           },
+                       ],
+                   }
+        );
+    }
 
-#[tokio::test]
-async fn extract_body_should_return_a_new_request() {
-    let mut request = Request::builder()
-        .method("POST")
-        .uri("/")
-        .header("Host", "localhost")
-        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-        .header("Accept-Language", "en-US,en;q=0.5")
-        .header("Accept-Encoding", "gzip, deflate")
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .header("Content-Length", " 32")
-        .header("Origin", "http://localhost")
-        .header("Referer", "http://localhost/vulnerabilities/exec/")
-        .extension(SocketAddr::from(([192, 168, 0, 1], 12000)))
-        .body(Body::from("ip=%3B+ls+-alh+%2F&Submit=Submit"))
-        .unwrap();
+    #[tokio::test]
+    async fn extract_body_should_return_a_new_request() {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("Host", "localhost")
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+            .header("Accept-Language", "en-US,en;q=0.5")
+            .header("Accept-Encoding", "gzip, deflate")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("Content-Length", " 32")
+            .header("Origin", "http://localhost")
+            .header("Referer", "http://localhost/vulnerabilities/exec/")
+            .extension(SocketAddr::from(([192, 168, 0, 1], 12000)))
+            .body(Body::from("ip=%3B+ls+-alh+%2F&Submit=Submit"))
+            .unwrap();
 
 
-    let (extracted_request, body) = extract_body(request).await;
-    assert_eq!("/", extracted_request.uri());
-    assert_eq!(8, extracted_request.headers().len());
-    assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit"], body);
-}
+        let (extracted_request, body) = extract_body(request).await;
+        assert_eq!("/", extracted_request.uri());
+        assert_eq!(8, extracted_request.headers().len());
+        assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit"], body);
+    }
 
-#[tokio::test]
-async fn extract_from_should_extract_request_body() {
-    let mut request = Request::builder()
-        .method("POST")
-        .uri("/")
-        .header("Host", "localhost")
-        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-        .header("Accept-Language", " en-US,en;q=0.5")
-        .header("Accept-Encoding", " gzip, deflate")
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .header("Content-Length", "32")
-        .header("Origin", " http://localhost")
-        .header("Referer", " http://localhost/some/path/url")
-        .extension(SocketAddr::from(([192, 168, 0, 1], 12000)))
-        .body(Body::from("ip=%3B+ls+-alh+%2F&Submit=Submit"))
-        .unwrap();
+    #[tokio::test]
+    async fn extract_from_should_extract_request_body() {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("Host", "localhost")
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+            .header("Accept-Language", " en-US,en;q=0.5")
+            .header("Accept-Encoding", " gzip, deflate")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("Content-Length", "32")
+            .header("Origin", " http://localhost")
+            .header("Referer", " http://localhost/some/path/url")
+            .extension(SocketAddr::from(([192, 168, 0, 1], 12000)))
+            .body(Body::from("ip=%3B+ls+-alh+%2F&Submit=Submit"))
+            .unwrap();
 
-    let (request_for_origin, vec) = extract_from(request, &RuleVariable {
-        count: false,
-        variable_type: RuleVariableType::RequestBody,
-    }).await;
+        let (request_for_origin, vec) = extract_from(request, &RuleVariable {
+            count: false,
+            variable_type: RuleVariableType::RequestBody,
+        }).await;
 
-    assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit".to_string()], vec);
-    assert_eq!(request_for_origin.version(), Version::HTTP_11);
+        assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit".to_string()], vec);
+        assert_eq!(request_for_origin.version(), Version::HTTP_11);
+    }
 }

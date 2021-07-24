@@ -9,7 +9,6 @@ use std::convert::identity;
 use crate::rules_parser::rule::Rule;
 use std::net::IpAddr;
 use std::str::FromStr;
-use regex::Regex;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuleOperator {
