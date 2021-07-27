@@ -1,0 +1,22 @@
+# Not used yet
+refresh_rate: 10 seconds
+appenders:
+  stdout:
+    kind: console
+  transactions:
+    kind: rolling_file
+    path: "log/transactions.log"
+    policy:
+      kind: compound
+      trigger:
+        kind: size
+        size: 50mb
+      roller:
+        kind: fixed_window
+        count: 30
+        pattern: "log/transactions.{}.log.gzip"
+root:
+  level: debug
+  appenders:
+    - stdout
+    - transactions

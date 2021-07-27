@@ -12,7 +12,7 @@ tokio = { version = "1.4", features = ["full"] }
 futures = "0.3"
 yaml-rust = "0.4"
 log = "0.4"
-env_logger = "0.8"
+log4rs = { version = "1.0.0", features = ["json_encoder"] }
 nom = "6.1"
 strum = "0.20"
 strum_macros = "0.20"
@@ -29,3 +29,4 @@ base64 = "0.13.0"
 html-escape = "0.2.9"
 async-trait = "0.1.50"
 tract = "0.15.2"
+bytesize = "1.0.1"

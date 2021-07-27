@@ -13,3 +13,4 @@ Cargo.lock
 v3.3.0.tar.gz
 rules/**
 coreruleset-3*
+log/

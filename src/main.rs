@@ -17,6 +17,17 @@ use crate::waf::WebApplicationFirewall;
 use crate::waf_running_mode::WafRunningMode;
 use crate::waf_settings::WafSettings;
 use crate::engine::rule_based_engine::RuleBasedEngine;
+use log4rs::append::console::ConsoleAppender;
+use log4rs::Config;
+use log4rs::config::{Appender, Root};
+use log::LevelFilter;
+use log4rs::append::file::FileAppender;
+use log4rs::append::rolling_file::RollingFileAppender;
+use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
+use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
+use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
+use log4rs::filter::threshold::ThresholdFilter;
+use log4rs::encode::json::JsonEncoder;
 
 mod reverse_proxy;
 mod waf_running_mode;
@@ -30,10 +41,33 @@ mod engine;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    env_logger::Builder::from_env(env_logger::Env::default()
-        .default_filter_or("debug")
-    )
-        .init();
+    let stdout = ConsoleAppender::builder()
+        .build();
+
+    let http_transactions_log_path = "log/transactions.log";
+    let rolling_file_policy = CompoundPolicy::new(
+        Box::new(SizeTrigger::new(bytesize::mib(50u64))),
+        Box::new(FixedWindowRoller::builder().build("log/transactions.{}.log.gzip", 30).unwrap()),
+    );
+
+    let http_transactions_log_appender = RollingFileAppender::builder()
+        // .encoder(Box::new(JsonEncoder::new()))
+        .build(http_transactions_log_path, Box::new(rolling_file_policy))
+        .unwrap();
+
+    let config = Config::builder()
+        .appender(Appender::builder()
+            .filter(Box::new(ThresholdFilter::new(log::LevelFilter::Info)))
+            .build("stdout", Box::new(stdout)))
+        .appender(Appender::builder()
+            .build("transactions", Box::new(http_transactions_log_appender)))
+        .build(Root::builder()
+            .appender("stdout")
+            .appender("transactions")
+            .build(LevelFilter::Debug))
+        .unwrap();
+
+    let _handle = log4rs::init_config(config).unwrap();
 
     let waf_settings = WafSettings::new().unwrap();
 

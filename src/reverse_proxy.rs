@@ -31,12 +31,11 @@ impl ReverseProxy {
 
         *request.uri_mut() = self.rewrite_uri(&request);
 
-        log::debug!("Request == {:?} from {:?}", request, remote_addr);
+        log::debug!("{:?} {:?}", remote_addr, request);
         let inspected_request_result = self.web_application_firewall
             .inspect_request(request)
             .await
             .and_then(|normalized_req| {
-                log::debug!("Normalized request {:?}", normalized_req);
                 Ok(normalized_req)
             });
 
@@ -51,7 +50,7 @@ impl ReverseProxy {
             .await
             .map_err(|error| WafError::new("Unreachable origin"))
             .and_then(|response| {
-                log::debug!("Received response == {:?}", response);
+                log::debug!("{:?}", response);
                 Ok(response)
             });
 
