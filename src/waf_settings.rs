@@ -1,5 +1,6 @@
 use config::{ConfigError, Config, File, Environment};
 use serde::Deserialize;
+use crate::engine::waf_engine_type::WafEngineType;
 
 #[derive(Debug, Deserialize)]
 pub struct WafSettings {
@@ -7,7 +8,9 @@ pub struct WafSettings {
     pub authority: String,
     pub port: u16,
     pub upstream: String,
-    pub rules: String
+    pub engine_type: WafEngineType,
+    pub rules_path: String,
+    pub learning_model_path: String,
 }
 
 impl WafSettings {

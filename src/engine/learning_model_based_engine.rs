@@ -7,7 +7,8 @@ use crate::engine::waf_engine_type::WafEngineType::LearningModelBased;
 use crate::waf_running_mode::WafRunningMode;
 
 pub struct LearningModelBasedEngine {
-    running_mode: WafRunningMode
+    running_mode: WafRunningMode,
+    model: String,
 }
 
 #[async_trait]
@@ -26,5 +27,14 @@ impl WafEngine for LearningModelBasedEngine {
 
     async fn inspect_response(&self, response: Response<Body>) -> Result<Response<Body>, WafError> {
         Ok(response)
+    }
+}
+
+impl LearningModelBasedEngine {
+    pub fn new(running_mode: WafRunningMode, model: String) -> Self {
+        Self {
+            running_mode,
+            model,
+        }
     }
 }

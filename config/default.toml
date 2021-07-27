@@ -3,4 +3,5 @@ upstream = "upstream-url"
 authority = "localhost:8000"
 port = 80
 #rules = "coreruleset-3.3.0/rules"
-rules = "rules"
+rules_path = "rules"
+learning_model_path = "model/svm.onnx"
