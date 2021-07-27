@@ -31,6 +31,7 @@ use log4rs::encode::json::JsonEncoder;
 use crate::engine::waf_engine::WafEngine;
 use crate::engine::waf_engine_type::WafEngineType;
 use crate::engine::learning_model_based_engine::LearningModelBasedEngine;
+use tract_onnx::prelude::{Framework, InferenceModelExt, InferenceFact, DatumType, Datum, tvec};
 
 mod reverse_proxy;
 mod waf_running_mode;
@@ -56,11 +57,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 Box::new(RuleBasedEngine::new(WafRunningMode::On, rules))
             },
             WafEngineType::LearningModelBased => {
-                Box::new(LearningModelBasedEngine::new(WafRunningMode::On, "".to_string()))
+                let model = tract_onnx::onnx()
+                    .model_for_path("model/occ_svm.onnx")?
+                    // to
+                    .with_input_fact(0, InferenceFact::dt_shape(f32::datum_type(), tvec!(1, 13)))?
+                    .into_optimized()?
+                    .into_runnable()?;
+
+                Box::new(LearningModelBasedEngine::new(WafRunningMode::On, model))
             },
         }
     );
-
 
     let http_connector = HttpConnector::new();
     let http_client = Client::builder().build(http_connector);
