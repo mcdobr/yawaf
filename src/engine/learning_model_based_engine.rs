@@ -5,11 +5,10 @@ use crate::waf_error::WafError;
 use crate::engine::waf_engine_type::WafEngineType;
 use crate::engine::waf_engine_type::WafEngineType::LearningModelBased;
 use crate::waf_running_mode::WafRunningMode;
-use tract_onnx::prelude::{RunnableModel, TypedFact, TypedOp, Graph};
 
 pub struct LearningModelBasedEngine {
     running_mode: WafRunningMode,
-    model: RunnableModel<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>,
+    // model: RunnableModel<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>,
 }
 
 #[async_trait]
@@ -32,10 +31,10 @@ impl WafEngine for LearningModelBasedEngine {
 }
 
 impl LearningModelBasedEngine {
-    pub fn new(running_mode: WafRunningMode, model: RunnableModel<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>) -> Self {
+    pub fn new(running_mode: WafRunningMode/*, model: RunnableModel<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>*/) -> Self {
         Self {
             running_mode,
-            model,
+            // model,
         }
     }
 }
