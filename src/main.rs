@@ -32,9 +32,10 @@ use crate::engine::waf_engine::WafEngine;
 use crate::engine::waf_engine_type::WafEngineType;
 use crate::engine::learning_model_based_engine::LearningModelBasedEngine;
 use onnxruntime::environment::Environment;
-use onnxruntime::{LoggingLevel, GraphOptimizationLevel};
+use onnxruntime::{LoggingLevel, GraphOptimizationLevel, ndarray};
 use onnxruntime::session::Session;
 use onnxruntime::ndarray::Array;
+use onnxruntime::ndarray::Array2;
 use onnxruntime::tensor::OrtOwnedTensor;
 
 mod reverse_proxy;
@@ -68,31 +69,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
                 let mut session: Session = onnx_environment.new_session_builder()?
                     .with_optimization_level(GraphOptimizationLevel::Basic)?
-                    .with_number_threads(1)?
                     .with_model_from_file("model/occ_svm.onnx")?;
 
+                log::error!("{:?}", session);
 
-                log::info!("{:?}", session);
-                // let arr = Array::from_vec(
-                //     vec![-0.52204418,
-                //          -0.39849745,
-                //          0.,
-                //          0.60876306,
-                //          -0.16095812,
-                //          2.05754227,
-                //          -0.19622297,
-                //          -0.4339275,
-                //          -0.55218664,
-                //          -0.57392151,
-                //          0.,
-                //          -0.36106683,
-                //          0.0,
-                //          -0.40310087,
-                //          -0.31618812,
-                //          0.08079797,
-                //          -0.21198798
-                //     ]);
-                // let result: Vec<OrtOwnedTensor<f32, _>> = session.run(vec![arr])?;
+                let arr = Array2::<f32>::from_shape_vec(
+                    (1, 17),
+                    vec![-0.52204418,
+                         -0.39849745,
+                         0.,
+                         0.60876306,
+                         -0.16095812,
+                         2.05754227,
+                         -0.19622297,
+                         -0.4339275,
+                         -0.55218664,
+                         -0.57392151,
+                         0.,
+                         -0.36106683,
+                         0.0,
+                         -0.40310087,
+                         -0.31618812,
+                         0.08079797,
+                         -0.21198798
+                    ]).unwrap();
+
+
+                // let input_arrays = vec![arr];
+                let results: Vec<OrtOwnedTensor<i32, _>> = session.run(vec![arr])?;
+
+                // log::error!("{:?}", results);
+                log::error!("{:?}", results[0]);
+                log::error!("{:?}", results[1]);
 
                 Box::new(LearningModelBasedEngine::new(WafRunningMode::On))
             }
