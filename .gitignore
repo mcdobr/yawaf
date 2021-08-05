@@ -11,7 +11,8 @@ Cargo.lock
 
 .idea
 v3.3.0.tar.gz
-rules/**
+rules/*.backup
+rules/*.data
 coreruleset-3*
 log/
 model/
