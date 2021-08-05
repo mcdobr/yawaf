@@ -1,6 +1,6 @@
 use hyper::{Body, Request};
 use nom::error::context;
-use nom::IResult;
+use nom::{IResult, AsBytes};
 use nom::sequence::{tuple, delimited};
 use nom::character::complete::{multispace1, multispace0};
 use crate::rules_parser::rule_directive::RuleDirective;
@@ -331,7 +331,10 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
 async fn extract_body(request: Request<Body>) -> (Request<Body>, Vec<String>) {
     let (parts, body) = request.into_parts();
     let bytes = hyper::body::to_bytes(body).await.unwrap();
-    let body_payload = String::from_utf8(bytes.to_vec()).unwrap();
+    let body_payload = String::from_utf8(bytes.to_vec()).unwrap()
+        // todo: dirty replace for x-www-form-urlencoded if later it is needed to urldecode. Need to provide context
+        //  since urldecoding for bodies should mean x-www-form-urlencoded
+        .replace("+", "%20");
 
     return (Request::from_parts(parts, Body::from(body_payload.clone())), vec![body_payload]);
 }

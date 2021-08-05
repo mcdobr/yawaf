@@ -129,4 +129,19 @@ mod tests {
 
         assert!(rule.matches(request).await.1);
     }
+
+    #[tokio::test]
+    async fn rule_should_decode_url_form_encoded_post_body() {
+        let rule = parse_rule(r###"SecRule REQUEST_BODY "@rx ; ls" "id:3,block,t:urlDecode""###)
+            .unwrap().1;
+
+        let payload = "ip=%3B+ls+-alh&Submit=Submit";
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("http://example.com")
+            .body(Body::from(payload))
+            .unwrap();
+
+        assert!(rule.matches(request).await.1);
+    }
 }
