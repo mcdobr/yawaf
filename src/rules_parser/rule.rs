@@ -18,6 +18,7 @@ pub struct Rule {
     pub variables: Vec<RuleVariable>,
     pub operator: RuleOperator,
     pub actions: Vec<RuleAction>,
+    pub chain: Option<Vec<Rule>>,
 }
 
 impl Rule {
@@ -323,6 +324,7 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
                         variables,
                         operator,
                         actions,
+                        chain: None,
                     }
             );
         })
@@ -331,12 +333,17 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
 async fn extract_body(request: Request<Body>) -> (Request<Body>, Vec<String>) {
     let (parts, body) = request.into_parts();
     let bytes = hyper::body::to_bytes(body).await.unwrap();
-    let body_payload = String::from_utf8(bytes.to_vec()).unwrap()
-        // todo: dirty replace for x-www-form-urlencoded if later it is needed to urldecode. Need to provide context
-        //  since urldecoding for bodies should mean x-www-form-urlencoded
-        .replace("+", "%20");
+    let bytes_clone = bytes.clone();
 
-    return (Request::from_parts(parts, Body::from(body_payload.clone())), vec![body_payload]);
+    println!("{:?}", bytes);
+    println!("{:?}", bytes_clone);
+
+    let body_key_value_tuples: Vec<(String, String)> = serde_urlencoded::from_bytes(bytes.as_bytes()).unwrap();
+    let body_params: Vec<String> = body_key_value_tuples.iter()
+        .map(|(k, v)| k.to_owned() + "=" + v)
+        .collect();
+    let reconstructed_body = body_params.join("&");
+    return (Request::from_parts(parts, Body::from(bytes_clone)), vec![reconstructed_body]);
 }
 
 #[cfg(test)]
@@ -348,6 +355,7 @@ mod tests {
     use crate::rules_parser::rule_operator::{RuleOperatorType, RuleOperator};
     use hyper::{Version, Body, Request};
     use std::net::SocketAddr;
+    use nom::AsBytes;
 
     #[test]
     fn parse_rules_should_parse_multiple_rules_completely() {
@@ -399,6 +407,7 @@ mod tests {
                         argument: Some("ruleEngine=off".to_string()),
                     },
                 ],
+                chain: None,
             },
             Rule {
                 directive: RuleDirective::SecRule,
@@ -437,6 +446,7 @@ mod tests {
                         argument: Some("ruleRemoveTargetById=981318".to_string()),
                     },
                 ],
+                chain: None,
             }
         ], rules);
     }
@@ -462,6 +472,7 @@ mod tests {
                 argument: "".to_string(),
             },
             actions: vec![],
+            chain: None,
         };
 
         let extracted_values = extract_from(request, &rule.variables[0]).await.1;
@@ -518,6 +529,7 @@ mod tests {
                                argument: Some("'OWASP_CRS/3.3.0'".to_string()),
                            },
                        ],
+                       chain: None,
                    }
         );
     }
@@ -540,10 +552,12 @@ mod tests {
             .unwrap();
 
 
-        let (extracted_request, body) = extract_body(request).await;
-        assert_eq!("/", extracted_request.uri());
-        assert_eq!(8, extracted_request.headers().len());
-        assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit"], body);
+        let (request_for_origin, body) = extract_body(request).await;
+        assert_eq!("/", request_for_origin.uri());
+        assert_eq!(8, request_for_origin.headers().len());
+        let forwarded_body = hyper::body::to_bytes(request_for_origin.into_body()).await.unwrap();
+        assert_eq!("ip=%3B+ls+-alh+%2F&Submit=Submit".to_string(),
+                   String::from_utf8(forwarded_body.as_bytes().to_vec()).unwrap());
     }
 
     #[tokio::test]
@@ -568,7 +582,10 @@ mod tests {
             variable_type: RuleVariableType::RequestBody,
         }).await;
 
-        assert_eq!(vec!["ip=%3B+ls+-alh+%2F&Submit=Submit".to_string()], vec);
+        assert_eq!(vec!["ip=; ls -alh /&Submit=Submit"], vec);
         assert_eq!(request_for_origin.version(), Version::HTTP_11);
+        let forwarded_body = hyper::body::to_bytes(request_for_origin.into_body()).await.unwrap();
+        assert_eq!("ip=%3B+ls+-alh+%2F&Submit=Submit".to_string(),
+                   String::from_utf8(forwarded_body.as_bytes().to_vec()).unwrap());
     }
 }
