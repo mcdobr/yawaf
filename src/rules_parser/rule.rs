@@ -11,6 +11,9 @@ use crate::rules_parser::rule_action::{RuleAction, RuleActionType};
 use hyper::http::uri::PathAndQuery;
 use std::net::SocketAddr;
 use hyper::header::COOKIE;
+use crate::rules_parser::rule_action::RuleActionType::Chain;
+
+type RuleChainLink = Option<Box<Rule>>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -18,10 +21,22 @@ pub struct Rule {
     pub variables: Vec<RuleVariable>,
     pub operator: RuleOperator,
     pub actions: Vec<RuleAction>,
-    pub chain: Option<Vec<Rule>>,
+    pub next_in_chain: RuleChainLink,
 }
 
 impl Rule {
+    pub fn push(&mut self, rule: Rule) {
+        let new_link = Box::new(Rule {
+            directive: rule.directive,
+            variables: rule.variables,
+            operator: rule.operator,
+            actions: rule.actions,
+            next_in_chain: std::mem::replace(&mut self.next_in_chain, None)
+        });
+
+        self.next_in_chain = Some(new_link);
+    }
+
     pub async fn matches(&self, request: Request<Body>) -> (Request<Body>, bool) {
         let (reconstructed_request, raw_values) = self.extract_raw_values(request).await;
 
@@ -288,7 +303,34 @@ pub fn parse_rules(input: &str) -> Vec<Rule> {
         rules.push(rule);
         str = next_str;
     }
-    return rules;
+
+    rules.reverse();
+
+    let mut top_level_rules : Vec<Rule> = Vec::new();
+    let mut last_rule: Option<Rule> = None;
+
+    for mut rule in rules {
+        match last_rule {
+            None => { last_rule = Option::from(rule) }
+            Some(actual_rule) => {
+                let chains_other_rule = rule.actions.iter()
+                    .map(|action| action.action_type)
+                    .any(|action_type| action_type == Chain);
+
+                if chains_other_rule {
+                    rule.push(actual_rule.clone());
+                } else {
+                    top_level_rules.push(actual_rule.clone());
+                }
+
+                last_rule = Option::from(rule);
+            }
+        }
+    }
+    top_level_rules.push(last_rule.unwrap());
+    top_level_rules.reverse();
+
+    return top_level_rules;
 }
 
 pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
@@ -324,7 +366,7 @@ pub fn parse_rule(input: &str) -> IResult<&str, Rule> {
                         variables,
                         operator,
                         actions,
-                        chain: None,
+                        next_in_chain: None,
                     }
             );
         })
@@ -356,6 +398,7 @@ mod tests {
     use hyper::{Version, Body, Request};
     use std::net::SocketAddr;
     use nom::AsBytes;
+    use crate::rules_parser::rule_variable::RuleVariableType::RemoteAddr;
 
     #[test]
     fn parse_rules_should_parse_multiple_rules_completely() {
@@ -407,7 +450,7 @@ mod tests {
                         argument: Some("ruleEngine=off".to_string()),
                     },
                 ],
-                chain: None,
+                next_in_chain: None,
             },
             Rule {
                 directive: RuleDirective::SecRule,
@@ -446,11 +489,111 @@ mod tests {
                         argument: Some("ruleRemoveTargetById=981318".to_string()),
                     },
                 ],
-                chain: None,
+                next_in_chain: None,
             }
         ], rules);
     }
 
+    #[test]
+    fn should_push_rules_in_chain() {
+        let mut rule1 = Rule {
+            directive: RuleDirective::SecAction,
+            variables: vec![],
+            operator: RuleOperator {
+                negated: false,
+                operator_type: RuleOperatorType::BeginsWith,
+                argument: "".to_string()
+            },
+            actions: vec![],
+            next_in_chain: None
+        };
+
+        let mut rule2 = Rule {
+            directive: RuleDirective::SecAction,
+            variables: vec![],
+            operator: RuleOperator {
+                negated: false,
+                operator_type: RuleOperatorType::EndsWith,
+                argument: "".to_string()
+            },
+            actions: vec![],
+            next_in_chain: None
+        };
+
+        let rule3 = Rule {
+            directive: RuleDirective::SecAction,
+            variables: vec![],
+            operator: RuleOperator {
+                negated: false,
+                operator_type: RuleOperatorType::IpMatch,
+                argument: "".to_string()
+            },
+            actions: vec![],
+            next_in_chain: None
+        };
+
+
+        rule2.push(rule3);
+        rule1.push(rule2);
+
+        println!("{:?}", rule1);
+    }
+
+    #[test]
+    fn parse_rules_should_handle_chains() {
+        let rules = parse_rules(r###"
+    SecRule REMOTE_ADDR "@ipMatch 192.168.1.101" \
+        "chain"
+        SecRule REQUEST_METHOD "@eq POST" \
+            "block"
+
+    SecRule REQUEST_URI "@beginsWith /index.php/component/users/" \
+        "block"
+"###);
+
+        assert_eq!(vec![Rule {
+            directive: RuleDirective::SecRule,
+            variables: vec![RuleVariable {
+                count: false,
+                variable_type: RuleVariableType::RemoteAddr,
+            }],
+            operator: RuleOperator {
+                negated: false,
+                operator_type: RuleOperatorType::IpMatch,
+                argument: "192.168.1.101".to_string(),
+            },
+            actions: vec![RuleAction { action_type: RuleActionType::Chain, argument: None }],
+            next_in_chain: Some(Box::new(
+                Rule {
+                    directive: RuleDirective::SecRule,
+                    variables: vec![RuleVariable {
+                        count: false,
+                        variable_type: RuleVariableType::RequestMethod,
+                    }],
+                    operator: RuleOperator {
+                        negated: false,
+                        operator_type: RuleOperatorType::Equals,
+                        argument: "POST".to_string(),
+                    },
+                    actions: vec![RuleAction { action_type: RuleActionType::Block, argument: None }],
+                    next_in_chain: None,
+                }
+            )),
+        }, Rule {
+            directive: RuleDirective::SecRule,
+            variables: vec![RuleVariable {
+                count: false,
+                variable_type: RuleVariableType::RequestUri,
+            }],
+            operator: RuleOperator {
+                negated: false,
+                operator_type: RuleOperatorType::BeginsWith,
+                argument: "/index.php/component/users/".to_string(),
+            },
+            actions: vec![RuleAction { action_type: RuleActionType::Block, argument: None }],
+            next_in_chain: None,
+        }], rules)
+    }
 
     #[tokio::test]
     async fn extract_variables_should_extract_headers() {
@@ -472,7 +615,7 @@ mod tests {
                 argument: "".to_string(),
             },
             actions: vec![],
-            chain: None,
+            next_in_chain: None,
         };
 
         let extracted_values = extract_from(request, &rule.variables[0]).await.1;
@@ -529,7 +672,7 @@ mod tests {
                                argument: Some("'OWASP_CRS/3.3.0'".to_string()),
                            },
                        ],
-                       chain: None,
+                       next_in_chain: None,
                    }
         );
     }

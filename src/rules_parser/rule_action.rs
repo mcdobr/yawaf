@@ -12,7 +12,7 @@ pub struct RuleAction {
     pub argument: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RuleActionType {
     Accuracy,
     Allow,
