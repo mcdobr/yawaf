@@ -8,7 +8,7 @@ use nom::multi::separated_list0;
 use nom::sequence::tuple;
 use nom::combinator::opt;
 
-#[derive(Clone, Debug, PartialEq, EnumVariantNames)]
+#[derive(Clone, Debug, PartialEq, Eq,  EnumVariantNames, Hash)]
 #[strum(serialize_all = "shouty_snake_case")]
 pub enum RuleVariableType {
     Args,
