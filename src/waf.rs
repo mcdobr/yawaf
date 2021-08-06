@@ -26,7 +26,7 @@ impl WebApplicationFirewall {
 
 #[cfg(test)]
 mod tests {
-    use crate::rules_parser::rule::parse_rule;
+    use crate::rules_parser::rule::{parse_rule, parse_rules};
     use hyper::{Body, http, Request};
     use std::net::SocketAddr;
     use hyper::header::COOKIE;
@@ -143,5 +143,42 @@ mod tests {
             .unwrap();
 
         assert!(rule.matches(request).await.1);
+    }
+
+    #[tokio::test]
+    async fn chained_rules_should_match_if_all_conditions_are_met() {
+        let rule = parse_rules(
+            r###"SecRule REQUEST_METHOD "@streq GET"
+                "chain"
+            SecRule REQUEST_URI "@contains /index.html"
+                "block"
+        "###).into_iter().nth(0).unwrap();
+
+        let mut request = Request::builder()
+            .method("GET")
+            .uri("https://example.com/index.html")
+            .body(Body::empty())
+            .unwrap();
+
+        assert!(rule.matches(request).await.1);
+    }
+
+
+    #[tokio::test]
+    async fn chained_rules_should_not_match_request_if_not_all_conditions_are_met() {
+        let rule = parse_rules(
+        r###"SecRule REQUEST_METHOD "@streq POST"
+                "chain"
+            SecRule REQUEST_URI "@contains /index.html"
+                "block"
+        "###).into_iter().nth(0).unwrap();
+
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("https://example.com/abcd")
+            .body(Body::empty())
+            .unwrap();
+
+        assert!(!rule.matches(request).await.1);
     }
 }

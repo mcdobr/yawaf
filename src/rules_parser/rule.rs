@@ -1,3 +1,4 @@
+use async_recursion::async_recursion;
 use hyper::{Body, Request};
 use nom::error::context;
 use nom::{IResult, AsBytes};
@@ -37,15 +38,23 @@ impl Rule {
         self.next_in_chain = Some(new_link);
     }
 
+    #[async_recursion]
     pub async fn matches(&self, request: Request<Body>) -> (Request<Body>, bool) {
         let (reconstructed_request, raw_values) = self.extract_raw_values(request).await;
 
         let transformed_values = self.transform(raw_values);
 
-        let matched_any_rules = transformed_values
+        let matched_current_rule = transformed_values
             .iter()
             .any(|str| self.evaluate_operation(str));
-        return (reconstructed_request, matched_any_rules);
+
+        return match &self.next_in_chain {
+            None => { (reconstructed_request, matched_current_rule) }
+            Some(next_in_chain) => {
+                let (next_reconstructed_req, matches_chain) = next_in_chain.matches(reconstructed_request).await;
+                (next_reconstructed_req, matched_current_rule && matches_chain)
+            }
+        };
     }
 
     async fn extract_raw_values(&self, mut request: Request<Body>) -> (Request<Body>, Vec<String>) {
