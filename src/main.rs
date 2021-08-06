@@ -37,6 +37,7 @@ use onnxruntime::session::Session;
 use onnxruntime::ndarray::Array;
 use onnxruntime::ndarray::Array2;
 use onnxruntime::tensor::OrtOwnedTensor;
+use tract_onnx::prelude::*;
 
 mod reverse_proxy;
 mod waf_running_mode;
@@ -62,18 +63,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 Box::new(RuleBasedEngine::new(WafRunningMode::On, rules))
             }
             WafEngineType::LearningModelBased => {
-                let onnx_environment = Environment::builder()
-                    .with_name("test")
-                    .with_log_level(LoggingLevel::Verbose)
-                    .build()?;
 
-                let mut session: Session = onnx_environment.new_session_builder()?
-                    .with_optimization_level(GraphOptimizationLevel::Basic)?
-                    .with_model_from_file("model/occ_svm.onnx")?;
+                let model = tract_onnx::onnx()
+                    .model_for_path("model/decision_tree.onnx")?
+                    .with_input_fact(0, InferenceFact::dt_shape(f32::datum_type(), tvec!(1, 17)))?
+                    .into_optimized()?
+                    .into_runnable()?;
 
-                log::error!("{:?}", session);
-
-                let arr = Array2::<f32>::from_shape_vec(
+                let feature_vector: Tensor = Array2::<f32>::from_shape_vec(
                     (1, 17),
                     vec![-0.52204418,
                          -0.39849745,
@@ -92,17 +89,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                          -0.31618812,
                          0.08079797,
                          -0.21198798
-                    ]).unwrap();
+                    ]).unwrap().into();
 
 
-                // let input_arrays = vec![arr];
-                let results: Vec<OrtOwnedTensor<i32, _>> = session.run(vec![arr])?;
+                let result = model.run(tvec!(feature_vector));
 
-                // log::error!("{:?}", results);
-                log::error!("{:?}", results[0]);
-                log::error!("{:?}", results[1]);
-
-                Box::new(LearningModelBasedEngine::new(WafRunningMode::On))
+                println!("{:?}", result);
+                Box::new(LearningModelBasedEngine::new(WafRunningMode::On, model))
             }
         }
     );
