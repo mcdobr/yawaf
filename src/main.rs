@@ -28,16 +28,9 @@ use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
 use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
 use log4rs::filter::threshold::ThresholdFilter;
 use log4rs::encode::json::JsonEncoder;
-use crate::engine::waf_engine::WafEngine;
 use crate::engine::waf_engine_type::WafEngineType;
 use crate::engine::learning_model_based_engine::LearningModelBasedEngine;
-use onnxruntime::environment::Environment;
-use onnxruntime::{LoggingLevel, GraphOptimizationLevel, ndarray};
-use onnxruntime::session::Session;
-use onnxruntime::ndarray::Array;
-use onnxruntime::ndarray::Array2;
-use onnxruntime::tensor::OrtOwnedTensor;
-use tract_onnx::prelude::*;
+use tract_onnx::prelude::{Datum, InferenceFact, InferenceModelExt, Framework, tvec};
 
 mod reverse_proxy;
 mod waf_running_mode;
@@ -63,38 +56,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 Box::new(RuleBasedEngine::new(WafRunningMode::On, rules))
             }
             WafEngineType::LearningModelBased => {
-
                 let model = tract_onnx::onnx()
                     .model_for_path("model/decision_tree.onnx")?
                     .with_input_fact(0, InferenceFact::dt_shape(f32::datum_type(), tvec!(1, 17)))?
                     .into_optimized()?
                     .into_runnable()?;
-
-                let feature_vector: Tensor = Array2::<f32>::from_shape_vec(
-                    (1, 17),
-                    vec![-0.52204418,
-                         -0.39849745,
-                         0.,
-                         0.60876306,
-                         -0.16095812,
-                         2.05754227,
-                         -0.19622297,
-                         -0.4339275,
-                         -0.55218664,
-                         -0.57392151,
-                         0.,
-                         -0.36106683,
-                         0.0,
-                         -0.40310087,
-                         -0.31618812,
-                         0.08079797,
-                         -0.21198798
-                    ]).unwrap().into();
-
-
-                let result = model.run(tvec!(feature_vector));
-
-                println!("{:?}", result);
                 Box::new(LearningModelBasedEngine::new(WafRunningMode::On, model))
             }
         }

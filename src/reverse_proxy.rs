@@ -48,7 +48,7 @@ impl ReverseProxy {
         let received_response_result = self.client
             .request(inspected_request_result.unwrap())
             .await
-            .map_err(|error| WafError::new("Unreachable origin"))
+            .map_err(|_error| WafError::new("Unreachable origin"))
             .and_then(|response| {
                 log::debug!("{:?}", response);
                 Ok(response)
