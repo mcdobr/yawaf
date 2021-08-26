@@ -116,10 +116,10 @@ mod tests {
         let payload = urlencoding::encode("<scRiPt>alert(1);</scRiPt>").to_string();
 
         let raw_uri = format!("{}{}", "https://example.com?parameter=", payload.as_str());
-        println!("{}", raw_uri);
+        log::debug!("{}", raw_uri);
 
         let uri = http::Uri::from_str(&*raw_uri).unwrap();
-        println!("{}", uri);
+        log::debug!("{}", uri);
 
         let mut request = Request::builder()
             .method("GET")

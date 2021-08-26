@@ -66,7 +66,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     );
 
-    let http_connector = HttpConnector::new();
+    let mut http_connector = HttpConnector::new();
+    http_connector.set_nodelay(true);
     let http_client = Client::builder().build(http_connector);
 
     let reverse_proxy = std::sync::Arc::new(ReverseProxy {

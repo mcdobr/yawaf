@@ -386,8 +386,8 @@ async fn extract_body(request: Request<Body>) -> (Request<Body>, Vec<String>) {
     let bytes = hyper::body::to_bytes(body).await.unwrap();
     let bytes_clone = bytes.clone();
 
-    println!("{:?}", bytes);
-    println!("{:?}", bytes_clone);
+    log::debug!("{:?}", bytes);
+    log::debug!("{:?}", bytes_clone);
 
     let body_key_value_tuples: Vec<(String, String)> = serde_urlencoded::from_bytes(bytes.as_bytes()).unwrap();
     let body_params: Vec<String> = body_key_value_tuples.iter()
@@ -545,7 +545,7 @@ mod tests {
         rule2.push(rule3);
         rule1.push(rule2);
 
-        println!("{:?}", rule1);
+        log::debug!("{:?}", rule1);
     }
 
     #[test]
@@ -628,7 +628,7 @@ mod tests {
         };
 
         let extracted_values = extract_from(request, &rule.variables[0]).await.1;
-        println!("{:?}", extracted_values);
+        log::debug!("{:?}", extracted_values);
         assert!(!extracted_values.is_empty());
     }
 
