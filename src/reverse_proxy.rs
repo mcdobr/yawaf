@@ -125,7 +125,6 @@ impl ReverseProxy {
     fn whitelist_headers(&self, headers: &HeaderMap<HeaderValue>) -> HeaderMap<HeaderValue> {
         // Remove headers not whitelisted
         const ALLOWED_HEADERS: [&str; 7] = [
-            // "host",
             "content-type",
             "accept",
             "user-agent",
